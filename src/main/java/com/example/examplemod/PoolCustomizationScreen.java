@@ -42,7 +42,7 @@ public class PoolCustomizationScreen extends Screen {
     }
 
     public PoolCustomizationScreen(Screen parent, boolean enableItems, boolean enableBlocks, boolean enableAdvancements) {
-        super(Component.literal("Personnalisation du Pool"));
+        super(Component.translatable("gui.examplemod.pool_config.customize.title"));
         this.parent = parent;
         this.enableItems = enableItems;
         this.enableBlocks = enableBlocks;
@@ -61,7 +61,7 @@ public class PoolCustomizationScreen extends Screen {
         int midX = this.width / 2;
         
         // Search Box
-        this.searchBox = new EditBox(this.font, midX - 100, 22, 200, 20, Component.literal("Recherche"));
+        this.searchBox = new EditBox(this.font, midX - 100, 22, 200, 20, Component.translatable("gui.examplemod.pool_config.search"));
         this.searchBox.setResponder(this::updateFilter);
         this.addRenderableWidget(this.searchBox);
 
@@ -86,12 +86,12 @@ public class PoolCustomizationScreen extends Screen {
         // Enable All Visible Button
         this.addRenderableWidget(Button.builder(Component.literal("✔"), (btn) -> {
             setAllVisible(true);
-        }).bounds(midX - 52, 45, 50, 20).tooltip(Tooltip.create(Component.literal("Tout activer (visible)"))).build());
+        }).bounds(midX - 52, 45, 50, 20).tooltip(Tooltip.create(Component.translatable("gui.examplemod.pool_config.enable_all"))).build());
 
         // Disable All Visible Button
         this.addRenderableWidget(Button.builder(Component.literal("✖"), (btn) -> {
             setAllVisible(false);
-        }).bounds(midX + 2, 45, 50, 20).tooltip(Tooltip.create(Component.literal("Tout désactiver (visible)"))).build());
+        }).bounds(midX + 2, 45, 50, 20).tooltip(Tooltip.create(Component.translatable("gui.examplemod.pool_config.disable_all"))).build());
 
         // List
         this.objectiveList = new ObjectiveList(this.minecraft, this.width, this.height - 105, 70, 44);
@@ -99,7 +99,7 @@ public class PoolCustomizationScreen extends Screen {
         this.updateFilter(this.searchBox.getValue());
 
         // Save Button
-        this.addRenderableWidget(Button.builder(Component.literal("Sauvegarder et Quitter"), (btn) -> {
+        this.addRenderableWidget(Button.builder(Component.translatable("gui.examplemod.pool_config.save_quit"), (btn) -> {
             Config.BLACKLIST.set(this.currentBlacklist);
             Config.SPEC.save();
             this.onClose();
@@ -114,7 +114,7 @@ public class PoolCustomizationScreen extends Screen {
         guiGraphics.drawCenteredString(this.font, this.title, this.width / 2, 8, 0xFFFFFFFF);
         
         if (this.objectiveList.children().isEmpty()) {
-            guiGraphics.drawCenteredString(this.font, Component.literal("Aucun objectif trouvé. Vérifiez les filtres ou chargez un monde pour les progrès."), this.width / 2, this.height / 2, 0xFFAAAAAA);
+            guiGraphics.drawCenteredString(this.font, Component.translatable("gui.examplemod.pool_config.no_objectives"), this.width / 2, this.height / 2, 0xFFAAAAAA);
         }
     }
 
@@ -149,23 +149,26 @@ public class PoolCustomizationScreen extends Screen {
     }
 
     private Component getTypeFilterText() {
-        String text = "Type: ";
-        if (currentTypeFilter == null) text += "Tous";
-        else if (currentTypeFilter == Objective.Type.ITEM) text += "Items";
-        else if (currentTypeFilter == Objective.Type.BLOCK) text += "Blocs";
-        else if (currentTypeFilter == Objective.Type.ADVANCEMENT) text += "Progrès";
-        return Component.literal(text);
+        Component typeText;
+        if (currentTypeFilter == null) typeText = Component.translatable("gui.examplemod.pool_config.filter.type.all");
+        else if (currentTypeFilter == Objective.Type.ITEM) typeText = Component.translatable("gui.examplemod.pool_config.filter.type.items");
+        else if (currentTypeFilter == Objective.Type.BLOCK) typeText = Component.translatable("gui.examplemod.pool_config.filter.type.blocks");
+        else if (currentTypeFilter == Objective.Type.ADVANCEMENT) typeText = Component.translatable("gui.examplemod.pool_config.filter.type.advancements");
+        else typeText = Component.literal("?");
+        
+        return Component.translatable("gui.examplemod.pool_config.filter.type", typeText);
     }
 
     private Component getDimensionFilterText() {
-        String text = "Dim: ";
+        Component dimText;
         switch (currentDimensionFilter) {
-            case ALL: text += "Toutes"; break;
-            case OVERWORLD: text += "Overworld"; break;
-            case NETHER: text += "Nether"; break;
-            case END: text += "End"; break;
+            case ALL: dimText = Component.translatable("gui.examplemod.pool_config.filter.dimension.all"); break;
+            case OVERWORLD: dimText = Component.translatable("gui.examplemod.pool_config.filter.dimension.overworld"); break;
+            case NETHER: dimText = Component.translatable("gui.examplemod.pool_config.filter.dimension.nether"); break;
+            case END: dimText = Component.translatable("gui.examplemod.pool_config.filter.dimension.end"); break;
+            default: dimText = Component.literal("?");
         }
-        return Component.literal(text);
+        return Component.translatable("gui.examplemod.pool_config.filter.dimension", dimText);
     }
 
     private void updateFilter(String filter) {

@@ -10,7 +10,7 @@ import java.util.List;
 public class ReminderScreen extends Screen {
 
     public ReminderScreen() {
-        super(Component.literal("Rappel des Objectifs"));
+        super(Component.translatable("gui.examplemod.objectives_reminder"));
     }
 
     @Override
@@ -20,13 +20,13 @@ public class ReminderScreen extends Screen {
         int spacing = 10;
         
         // Button "Fermer" (Close)
-        this.addRenderableWidget(Button.builder(Component.literal("Fermer"), (button) -> {
+        this.addRenderableWidget(Button.builder(Component.translatable("gui.examplemod.close"), (button) -> {
             this.onClose();
         }).bounds(this.width / 2 - buttonWidth / 2, this.height - 40, buttonWidth, buttonHeight).build());
         
         // Button "Abandonner (Nouvel Objectif)"
         // Uses same logic as VictoryScreen "Nouvelle Run"
-        this.addRenderableWidget(Button.builder(Component.literal("Abandonner (Nouvel Objectif)"), (button) -> {
+        this.addRenderableWidget(Button.builder(Component.translatable("gui.examplemod.give_up"), (button) -> {
             SpeedrunState.prepareForNewGame();
             
             // Rename world with "Echec" before leaving
@@ -43,7 +43,7 @@ public class ReminderScreen extends Screen {
             if (SpeedrunState.getObjectives() != null && !SpeedrunState.getObjectives().isEmpty()) {
                 String objPrefix;
                 if (SpeedrunState.getObjectives().size() > 1) {
-                    objPrefix = "Liste " + SpeedrunState.getObjectives().size() + " items";
+                    objPrefix = Component.translatable("gui.examplemod.list_prefix", SpeedrunState.getObjectives().size()).getString();
                 } else {
                     objPrefix = SpeedrunState.getObjectives().get(0).getDisplayName().getString();
                 }
@@ -51,7 +51,7 @@ public class ReminderScreen extends Screen {
                 // Clean prefix
                 objPrefix = objPrefix.replaceAll("[\\\\/:*?\"<>|]", "_");
                 
-                String suffix = " Echec"; // No time
+                String suffix = Component.translatable("gui.examplemod.failed_suffix").getString(); // No time
                 String newName = objPrefix + suffix;
                 newName = newName.replaceAll("[\\\\/:*?\"<>|]", "_");
                 

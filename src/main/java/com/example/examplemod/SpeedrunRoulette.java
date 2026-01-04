@@ -83,17 +83,8 @@ public class SpeedrunRoulette {
 
     private void registerKeyMappings(RegisterKeyMappingsEvent event) {
         // Create the Category object.
-        // The error "String cannot be converted to Identifier" confirms that KeyMapping.Category constructor expects an Identifier (ResourceLocation).
-        
-        // We need to pass an Identifier/ResourceLocation.
-        // Since 'Identifier' is imported (likely net.minecraft.resources.Identifier based on previous context or imports),
-        // we use Identifier.tryParse or new Identifier if available.
-        // Assuming Identifier.tryParse(String) is the standard way.
-        
         KeyMapping.Category category = new KeyMapping.Category(Identifier.tryParse("examplemod:speedrun_roulette"));
         
-        // Register the category itself if needed?
-        // According to NeoForge docs: "event.registerCategory(EXAMPLE_CATEGORY);"
         event.registerCategory(category);
         
         OPEN_WHEEL_KEY = new KeyMapping("key.examplemod.open_wheel", InputConstants.Type.KEYSYM, InputConstants.KEY_R, category);

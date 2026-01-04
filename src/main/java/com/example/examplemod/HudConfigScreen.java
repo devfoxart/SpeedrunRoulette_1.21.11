@@ -15,7 +15,7 @@ public class HudConfigScreen extends Screen {
     private EditBox timerColorBox;
 
     public HudConfigScreen(Screen parent) {
-        super(Component.literal("HUD Configuration"));
+        super(Component.translatable("gui.examplemod.hud_config.title"));
         this.parent = parent;
     }
 
@@ -32,7 +32,7 @@ public class HudConfigScreen extends Screen {
             adjustDouble(Config.HUD_TIMER_SCALE, -0.1);
         }).bounds(x, y, 20, h).build());
         
-        this.addRenderableWidget(Button.builder(Component.literal("Timer Scale: " + String.format("%.1f", Config.HUD_TIMER_SCALE.get())), (btn) -> {
+        this.addRenderableWidget(Button.builder(Component.translatable("gui.examplemod.hud_config.timer_scale", String.format("%.1f", Config.HUD_TIMER_SCALE.get())), (btn) -> {
             // Reset or cycle? Maybe just display.
         }).bounds(x + 25, y, w - 50, h).build()); 
 
@@ -47,7 +47,7 @@ public class HudConfigScreen extends Screen {
             adjustDouble(Config.HUD_ITEM_SCALE, -0.1);
         }).bounds(x, y, 20, h).build());
 
-        this.addRenderableWidget(Button.builder(Component.literal("Item Scale: " + String.format("%.1f", Config.HUD_ITEM_SCALE.get())), (btn) -> {
+        this.addRenderableWidget(Button.builder(Component.translatable("gui.examplemod.hud_config.item_scale", String.format("%.1f", Config.HUD_ITEM_SCALE.get())), (btn) -> {
         }).bounds(x + 25, y, w - 50, h).build());
 
         this.addRenderableWidget(Button.builder(Component.literal("+"), (btn) -> {
@@ -61,7 +61,7 @@ public class HudConfigScreen extends Screen {
             adjustDouble(Config.HUD_TEXT_SCALE, -0.1);
         }).bounds(x, y, 20, h).build());
 
-        this.addRenderableWidget(Button.builder(Component.literal("Text Scale: " + String.format("%.1f", Config.HUD_TEXT_SCALE.get())), (btn) -> {
+        this.addRenderableWidget(Button.builder(Component.translatable("gui.examplemod.hud_config.text_scale", String.format("%.1f", Config.HUD_TEXT_SCALE.get())), (btn) -> {
         }).bounds(x + 25, y, w - 50, h).build());
 
         this.addRenderableWidget(Button.builder(Component.literal("+"), (btn) -> {
@@ -69,9 +69,9 @@ public class HudConfigScreen extends Screen {
         }).bounds(x + w - 20, y, 20, h).build());
 
         y += gap;
-
+        
         // Text Color (Hue Slider)
-        this.addRenderableWidget(Button.builder(Component.literal("Text Color:"), (btn) -> {}).bounds(x, y, w, h).build()); 
+        this.addRenderableWidget(Button.builder(Component.translatable("gui.examplemod.hud_config.text_color"), (btn) -> {}).bounds(x, y, w, h).build()); 
         y += h + 2;
         
         int textColor = parseColor(Config.HUD_TEXT_COLOR.get(), 0xFFFFFFFF);
@@ -80,7 +80,7 @@ public class HudConfigScreen extends Screen {
         // If saturation is low, we assume it's white/gray mode (slider value < 0.1)
         double initialHueValue = (hsb[1] < 0.1) ? 0.05 : (0.1 + hsb[0] * 0.9);
         
-        this.addRenderableWidget(new HueSlider(x, y, w, h, Component.literal("Hue"), initialHueValue, (val) -> {
+        this.addRenderableWidget(new HueSlider(x, y, w, h, Component.translatable("gui.examplemod.hud_config.hue"), initialHueValue, (val) -> {
             int rgb;
             if (val < 0.1) {
                 rgb = 0xFFFFFFFF; // White
@@ -95,14 +95,14 @@ public class HudConfigScreen extends Screen {
         y += gap + 5;
 
         // Timer Color (Hue Slider)
-        this.addRenderableWidget(Button.builder(Component.literal("Timer Color:"), (btn) -> {}).bounds(x, y, w, h).build());
+        this.addRenderableWidget(Button.builder(Component.translatable("gui.examplemod.hud_config.timer_color"), (btn) -> {}).bounds(x, y, w, h).build());
         y += h + 2;
         
         String timerColorStr = Config.HUD_TIMER_COLOR.get();
         boolean hasTimerColor = !timerColorStr.isEmpty();
         
         // Toggle Custom Color
-        this.addRenderableWidget(Button.builder(Component.literal(hasTimerColor ? "Custom Color: ON" : "Custom Color: OFF (Dynamic)"), (btn) -> {
+        this.addRenderableWidget(Button.builder(hasTimerColor ? Component.translatable("gui.examplemod.hud_config.custom_color.on") : Component.translatable("gui.examplemod.hud_config.custom_color.off"), (btn) -> {
              if (hasTimerColor) {
                  Config.HUD_TIMER_COLOR.set(""); // Disable
              } else {
@@ -118,7 +118,7 @@ public class HudConfigScreen extends Screen {
             float[] timerHsb = java.awt.Color.RGBtoHSB((timerColor >> 16) & 0xFF, (timerColor >> 8) & 0xFF, timerColor & 0xFF, null);
             double timerInitialHue = (timerHsb[1] < 0.1) ? 0.05 : (0.1 + timerHsb[0] * 0.9);
 
-            this.addRenderableWidget(new HueSlider(x, y, w, h, Component.literal("Hue"), timerInitialHue, (val) -> {
+            this.addRenderableWidget(new HueSlider(x, y, w, h, Component.translatable("gui.examplemod.hud_config.hue"), timerInitialHue, (val) -> {
                 int rgb;
                 if (val < 0.1) {
                     rgb = 0xFFFFFFFF; // White
@@ -226,7 +226,7 @@ public class HudConfigScreen extends Screen {
         guiGraphics.drawCenteredString(this.font, this.title, this.width / 2, 10, 0xFFFFFF);
         
         // Preview Label
-        guiGraphics.drawString(this.font, "Preview:", this.width / 2 + 20, 40, 0xFFFFFF);
+        guiGraphics.drawString(this.font, Component.translatable("gui.examplemod.hud_config.preview"), this.width / 2 + 20, 40, 0xFFFFFF);
         
         // Render HUD Preview
         // Use SpeedrunState.renderPreviewHud

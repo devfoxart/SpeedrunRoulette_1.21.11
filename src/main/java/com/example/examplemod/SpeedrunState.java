@@ -227,7 +227,7 @@ public class SpeedrunState {
         } else {
              // We have objectives (kept from retry or loaded from world).
              if (!timerRunning) startTimer(); 
-             Minecraft.getInstance().player.displayClientMessage(Component.literal("Speedrun: Objectifs actifs !"), true);
+             Minecraft.getInstance().player.displayClientMessage(Component.translatable("gui.examplemod.objectives_active"), true);
         }
     }
 
@@ -292,16 +292,16 @@ public class SpeedrunState {
                  net.minecraft.resources.ResourceKey<net.minecraft.world.level.Level> currentDim = mc.player.level().dimension();
                  if (currentDim != lastDimension) {
                      if (currentDim == net.minecraft.world.level.Level.NETHER) {
-                         recordSplit("Nether Entry");
+                         recordSplit(Component.translatable("gui.examplemod.split.nether_entry").getString());
                      } else if (currentDim == net.minecraft.world.level.Level.END) {
-                         recordSplit("End Entry");
+                         recordSplit(Component.translatable("gui.examplemod.split.end_entry").getString());
                      }
                      lastDimension = currentDim;
                  }
                  
                  // 2. Village Found (Heuristic: Villager Nearby)
                  // Check every 20 ticks
-                 if (mc.player.tickCount % 20 == 0 && !splits.containsKey("Village Found")) {
+                 if (mc.player.tickCount % 20 == 0 && !splits.containsKey(Component.translatable("gui.examplemod.split.village_found").getString())) {
                      net.minecraft.world.phys.AABB box = mc.player.getBoundingBox().inflate(32); // 32 blocks radius
                      // Try with entity.npc.Villager, but if that fails, try checking entity registry or just entity type
                      // Actually Villager is usually in net.minecraft.world.entity.npc
@@ -312,7 +312,7 @@ public class SpeedrunState {
                      java.util.List<net.minecraft.world.entity.Entity> entities = mc.player.level().getEntities(mc.player, box, e -> e.getType() == net.minecraft.world.entity.EntityType.VILLAGER);
                      
                      if (!entities.isEmpty()) {
-                         recordSplit("Village Found");
+                         recordSplit(Component.translatable("gui.examplemod.split.village_found").getString());
                      }
                  }
 
@@ -325,9 +325,9 @@ public class SpeedrunState {
                          // Bastion: minecraft:nether/find_bastion
                          // Using hardcoded IDs or better logic? Hardcoded is standard for speedrun tools.
                          
-                         checkAdvancement(advancements, "minecraft:nether/find_fortress", "Fortress Found");
-                         checkAdvancement(advancements, "minecraft:nether/find_bastion", "Bastion Found");
-                         checkAdvancement(advancements, "minecraft:story/follow_ender_eye", "Stronghold Found");
+                         checkAdvancement(advancements, "minecraft:nether/find_fortress", Component.translatable("gui.examplemod.split.fortress_found").getString());
+                         checkAdvancement(advancements, "minecraft:nether/find_bastion", Component.translatable("gui.examplemod.split.bastion_found").getString());
+                         checkAdvancement(advancements, "minecraft:story/follow_ender_eye", Component.translatable("gui.examplemod.split.stronghold_found").getString());
                      }
                  }
                  
@@ -344,25 +344,25 @@ public class SpeedrunState {
                                  
                                  // Check if chunk is loaded to prevent forcing load during shutdown
                                  if (level.hasChunkAt(pos)) {
-                                      checkStructure(level, pos, BuiltinStructures.END_CITY, "End City");
-                                      checkStructure(level, pos, BuiltinStructures.ANCIENT_CITY, "Cité Ancienne");
-                                      checkStructure(level, pos, BuiltinStructures.SHIPWRECK, "Épave");
-                                      checkStructure(level, pos, BuiltinStructures.OCEAN_MONUMENT, "Temple de l'eau");
-                                      checkStructure(level, pos, BuiltinStructures.PILLAGER_OUTPOST, "Tour de Pillager");
-                                      checkStructure(level, pos, BuiltinStructures.BURIED_TREASURE, "Trésor Enfoui");
-                                      checkStructure(level, pos, BuiltinStructures.DESERT_PYRAMID, "Temple du Désert");
-                                      checkStructure(level, pos, BuiltinStructures.FORTRESS, "Forteresse");
-                                      checkStructure(level, pos, BuiltinStructures.BASTION_REMNANT, "Bastion");
-                                      checkStructure(level, pos, BuiltinStructures.STRONGHOLD, "Stronghold");
-                                      checkStructure(level, pos, BuiltinStructures.IGLOO, "Igloo");
-                                      checkStructure(level, pos, BuiltinStructures.JUNGLE_TEMPLE, "Temple Jungle");
-                                      checkStructure(level, pos, BuiltinStructures.SWAMP_HUT, "Cabane Sorcière");
-                                      checkStructure(level, pos, BuiltinStructures.WOODLAND_MANSION, "Manoir");
-                                      checkStructure(level, pos, BuiltinStructures.NETHER_FOSSIL, "Fossile Nether");
+                                      checkStructure(level, pos, BuiltinStructures.END_CITY, Component.translatable("gui.examplemod.split.end_city").getString());
+                                      checkStructure(level, pos, BuiltinStructures.ANCIENT_CITY, Component.translatable("gui.examplemod.split.ancient_city").getString());
+                                      checkStructure(level, pos, BuiltinStructures.SHIPWRECK, Component.translatable("gui.examplemod.split.shipwreck").getString());
+                                      checkStructure(level, pos, BuiltinStructures.OCEAN_MONUMENT, Component.translatable("gui.examplemod.split.ocean_monument").getString());
+                                      checkStructure(level, pos, BuiltinStructures.PILLAGER_OUTPOST, Component.translatable("gui.examplemod.split.pillager_outpost").getString());
+                                      checkStructure(level, pos, BuiltinStructures.BURIED_TREASURE, Component.translatable("gui.examplemod.split.buried_treasure").getString());
+                                      checkStructure(level, pos, BuiltinStructures.DESERT_PYRAMID, Component.translatable("gui.examplemod.split.desert_pyramid").getString());
+                                      checkStructure(level, pos, BuiltinStructures.FORTRESS, Component.translatable("gui.examplemod.split.fortress_found").getString());
+                                      checkStructure(level, pos, BuiltinStructures.BASTION_REMNANT, Component.translatable("gui.examplemod.split.bastion_found").getString());
+                                      checkStructure(level, pos, BuiltinStructures.STRONGHOLD, Component.translatable("gui.examplemod.split.stronghold_found").getString());
+                                      checkStructure(level, pos, BuiltinStructures.IGLOO, Component.translatable("gui.examplemod.split.igloo").getString());
+                                      checkStructure(level, pos, BuiltinStructures.JUNGLE_TEMPLE, Component.translatable("gui.examplemod.split.jungle_temple").getString());
+                                      checkStructure(level, pos, BuiltinStructures.SWAMP_HUT, Component.translatable("gui.examplemod.split.swamp_hut").getString());
+                                      checkStructure(level, pos, BuiltinStructures.WOODLAND_MANSION, Component.translatable("gui.examplemod.split.woodland_mansion").getString());
+                                      checkStructure(level, pos, BuiltinStructures.NETHER_FOSSIL, Component.translatable("gui.examplemod.split.nether_fossil").getString());
                                       
                                       // 1.21 Trial Chambers
                                       try {
-                                          checkStructure(level, pos, BuiltinStructures.TRIAL_CHAMBERS, "Trial Chamber");
+                                          checkStructure(level, pos, BuiltinStructures.TRIAL_CHAMBERS, Component.translatable("gui.examplemod.split.trial_chamber").getString());
                                       } catch (NoSuchFieldError | NoClassDefFoundError e) {
                                           // Ignore
                                       }
@@ -386,7 +386,7 @@ public class SpeedrunState {
                      
                      if (objectives != null && !objectives.isEmpty()) {
                          if (objectives.size() > 1) {
-                            SpeedrunRoulette.pendingVictoryObjectiveName = "Liste de " + objectives.size() + " items";
+                            SpeedrunRoulette.pendingVictoryObjectiveName = Component.translatable("gui.examplemod.item_list", objectives.size()).getString();
                          } else {
                             SpeedrunRoulette.pendingVictoryObjectiveName = objectives.get(0).getDisplayName().getString();
                          }

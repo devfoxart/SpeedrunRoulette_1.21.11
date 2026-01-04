@@ -10,7 +10,7 @@ public class SpeedrunConfigScreen extends Screen {
     private final Screen parent;
 
     public SpeedrunConfigScreen(Screen parent) {
-        super(Component.literal("Speedrun Config"));
+        super(Component.translatable("gui.examplemod.config.title"));
         this.parent = parent;
     }
 
@@ -23,28 +23,28 @@ public class SpeedrunConfigScreen extends Screen {
         int gap = 24;
 
         this.addRenderableWidget(Button.builder(
-            Component.literal("Auto Open Wheel: " + (Config.AUTO_OPEN_WHEEL.get() ? "ON" : "OFF")),
+            Component.translatable("gui.examplemod.config.auto_open", (Config.AUTO_OPEN_WHEEL.get() ? Component.translatable("gui.examplemod.on") : Component.translatable("gui.examplemod.off"))),
             (btn) -> {
                 Config.AUTO_OPEN_WHEEL.set(!Config.AUTO_OPEN_WHEEL.get());
-                btn.setMessage(Component.literal("Auto Open Wheel: " + (Config.AUTO_OPEN_WHEEL.get() ? "ON" : "OFF")));
+                btn.setMessage(Component.translatable("gui.examplemod.config.auto_open", (Config.AUTO_OPEN_WHEEL.get() ? Component.translatable("gui.examplemod.on") : Component.translatable("gui.examplemod.off"))));
             }
         ).bounds(x, y, w, h).build());
 
         y += gap;
         this.addRenderableWidget(Button.builder(
-            Component.literal("Nombre d'objectifs: " + Config.OBJECTIVE_COUNT.get()),
+            Component.translatable("gui.examplemod.config.objective_count", Config.OBJECTIVE_COUNT.get()),
             (btn) -> {
                 int current = Config.OBJECTIVE_COUNT.get();
                 int next = current + 1;
                 if (next > 10) next = 1;
                 Config.OBJECTIVE_COUNT.set(next);
-                btn.setMessage(Component.literal("Nombre d'objectifs: " + next));
+                btn.setMessage(Component.translatable("gui.examplemod.config.objective_count", next));
             }
         ).bounds(x, y, w, h).build());
 
         y += gap;
         this.addRenderableWidget(Button.builder(
-            Component.literal("Configurer le Pool d'objectifs..."),
+            Component.translatable("gui.examplemod.config.pool_config"),
             (btn) -> {
                 this.minecraft.setScreen(new PoolConfigScreen(this));
             }
@@ -52,7 +52,7 @@ public class SpeedrunConfigScreen extends Screen {
 
         y += gap;
         this.addRenderableWidget(Button.builder(
-            Component.literal("Configurer le HUD..."),
+            Component.translatable("gui.examplemod.config.hud_config"),
             (btn) -> {
                 this.minecraft.setScreen(new HudConfigScreen(this));
             }

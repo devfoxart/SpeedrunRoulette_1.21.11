@@ -22,7 +22,7 @@ public class WheelScreen extends Screen {
     private static final int ITEM_HEIGHT = 60;
 
     public WheelScreen() {
-        super(Component.literal("Spin the Wheel"));
+        super(Component.translatable("gui.examplemod.spin_the_wheel"));
         
         int count = Config.OBJECTIVE_COUNT.get();
         List<Objective> selectedObjectives = ObjectivePoolHelper.getRandomObjectives(count);
@@ -61,7 +61,7 @@ public class WheelScreen extends Screen {
         int x = this.width / 2 - w / 2;
         int y = this.height - 40;
 
-        this.confirmButton = Button.builder(Component.literal("C'est parti !"), (button) -> {
+        this.confirmButton = Button.builder(Component.translatable("gui.examplemod.lets_go"), (button) -> {
             confirmSelection();
         }).bounds(x, y, w, h).build();
         
@@ -219,7 +219,7 @@ public class WheelScreen extends Screen {
              if (startY < 40) startY = 40;
         }
         
-        guiGraphics.drawCenteredString(this.font, "Objectifs Sélectionnés !", this.width / 2, startY - 25, 0xFFFF55);
+        guiGraphics.drawCenteredString(this.font, Component.translatable("gui.examplemod.selected_objectives"), this.width / 2, startY - 25, 0xFFFF55);
         
         for (int r = 0; r < rows; r++) {
             int rowStartIndex = r * maxPerRow;

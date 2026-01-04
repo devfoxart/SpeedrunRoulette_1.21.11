@@ -7,7 +7,7 @@ import net.minecraft.client.gui.components.Button;
 
 public class VictoryScreen extends Screen {
     public VictoryScreen() {
-        super(Component.literal("Victory"));
+        super(Component.translatable("gui.examplemod.victory"));
     }
 
     @Override
@@ -18,7 +18,7 @@ public class VictoryScreen extends Screen {
         int startY = this.height - 110; // Moved up to fit 4th button
 
         // Rejouer (Même Objectif)
-        this.addRenderableWidget(Button.builder(Component.literal("Rejouer (Même Objectif)"), (btn) -> {
+        this.addRenderableWidget(Button.builder(Component.translatable("gui.examplemod.play_again"), (btn) -> {
             SpeedrunState.prepareForRetry();
             
             // Standard "Save and Quit" logic
@@ -54,7 +54,7 @@ public class VictoryScreen extends Screen {
         }).bounds(this.width / 2 - buttonWidth / 2, startY, buttonWidth, buttonHeight).build());
 
         // Nouvelle Run (Nouveaux Objectifs)
-        this.addRenderableWidget(Button.builder(Component.literal("Nouvelle Run"), (btn) -> {
+        this.addRenderableWidget(Button.builder(Component.translatable("gui.examplemod.new_run"), (btn) -> {
             SpeedrunState.prepareForNewGame();
             
             boolean isSingleplayer = this.minecraft.isLocalServer();
@@ -70,7 +70,7 @@ public class VictoryScreen extends Screen {
         }).bounds(this.width / 2 - buttonWidth / 2, startY + spacing, buttonWidth, buttonHeight).build());
 
         // Menu Principal
-        this.addRenderableWidget(Button.builder(Component.literal("Menu Principal"), (btn) -> {
+        this.addRenderableWidget(Button.builder(Component.translatable("gui.examplemod.main_menu"), (btn) -> {
             boolean isSingleplayer = this.minecraft.isLocalServer();
              if (this.minecraft.level != null) {
                 this.minecraft.level.disconnect(Component.translatable("menu.disconnect"));
@@ -84,7 +84,7 @@ public class VictoryScreen extends Screen {
         }).bounds(this.width / 2 - buttonWidth / 2, startY + spacing * 2, buttonWidth, buttonHeight).build());
 
         // Rester en Jeu (Fermer Menu)
-        this.addRenderableWidget(Button.builder(Component.literal("Rester en Jeu"), (btn) -> {
+        this.addRenderableWidget(Button.builder(Component.translatable("gui.examplemod.stay_in_game"), (btn) -> {
             this.onClose();
         }).bounds(this.width / 2 - buttonWidth / 2, startY + spacing * 3, buttonWidth, buttonHeight).build());
     }
@@ -113,19 +113,19 @@ public class VictoryScreen extends Screen {
         int currentY = 20;
 
         // Title
-        g.drawCenteredString(this.font, Component.literal("VICTOIRE !").withStyle(net.minecraft.ChatFormatting.BOLD, net.minecraft.ChatFormatting.GOLD), centerX, currentY, 0xFFD700);
+        g.drawCenteredString(this.font, Component.translatable("gui.examplemod.victory_title").withStyle(net.minecraft.ChatFormatting.BOLD, net.minecraft.ChatFormatting.GOLD), centerX, currentY, 0xFFD700);
         currentY += 25;
 
         // Retrieve Objective Data
         java.util.List<Objective> objs = SpeedrunState.getObjectives();
         net.minecraft.world.item.ItemStack icon = net.minecraft.world.item.ItemStack.EMPTY;
-        Component objNameComp = Component.literal("Objectif Inconnu");
+        Component objNameComp = Component.translatable("gui.examplemod.unknown_objective");
 
         if (objs != null && !objs.isEmpty()) {
             Objective obj = objs.get(0);
             icon = obj.getIcon();
             if (objs.size() > 1) {
-                 objNameComp = Component.literal("Liste de " + objs.size() + " items");
+                 objNameComp = Component.translatable("gui.examplemod.item_list", objs.size());
             } else {
                  objNameComp = obj.getDisplayName();
             }
@@ -171,12 +171,12 @@ public class VictoryScreen extends Screen {
         currentY += 30;
 
         // Render Stats (Morts, Distance, Jours)
-        g.drawCenteredString(this.font, Component.literal("Statistiques").withStyle(net.minecraft.ChatFormatting.UNDERLINE), centerX, currentY, 0xFFAAAAAA);
+        g.drawCenteredString(this.font, Component.translatable("gui.examplemod.statistics").withStyle(net.minecraft.ChatFormatting.UNDERLINE), centerX, currentY, 0xFFAAAAAA);
         currentY += 15;
         
-        String deathStr = "Morts : " + SpeedrunState.getDeathCount();
-        String distStr = "Distance : " + (int)SpeedrunState.getTraveledMeters() + "m";
-        String daysStr = "Jours : " + SpeedrunState.getDaysPlayed();
+        Component deathStr = Component.translatable("gui.examplemod.deaths", SpeedrunState.getDeathCount());
+        Component distStr = Component.translatable("gui.examplemod.distance", (int)SpeedrunState.getTraveledMeters());
+        Component daysStr = Component.translatable("gui.examplemod.days", SpeedrunState.getDaysPlayed());
         
         g.drawCenteredString(this.font, deathStr, centerX, currentY, 0xFFFFFFFF);
         currentY += 12;
@@ -188,7 +188,7 @@ public class VictoryScreen extends Screen {
         currentY += 20;
         java.util.Map<String, String> splits = SpeedrunState.getSplits();
         if (!splits.isEmpty()) {
-             g.drawCenteredString(this.font, Component.literal("Temps Intermédiaires").withStyle(net.minecraft.ChatFormatting.UNDERLINE), centerX, currentY, 0xFFAAAAAA);
+             g.drawCenteredString(this.font, Component.translatable("gui.examplemod.splits").withStyle(net.minecraft.ChatFormatting.UNDERLINE), centerX, currentY, 0xFFAAAAAA);
              currentY += 15;
              for (java.util.Map.Entry<String, String> entry : splits.entrySet()) {
                  g.drawCenteredString(this.font, entry.getKey() + ": " + entry.getValue(), centerX, currentY, 0xFFDDDDDD);
