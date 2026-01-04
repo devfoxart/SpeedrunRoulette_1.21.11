@@ -173,10 +173,13 @@ public class ObjectivePoolHelper {
                 e.printStackTrace();
             }
 
-            // Fallback: Load from Vanilla Data (Main Menu / No World)
-            if (holders.isEmpty()) {
+            // Check if we found any advancements
+            boolean foundAdvancements = candidates.stream().anyMatch(o -> o.getType() == Objective.Type.ADVANCEMENT);
+
+            // Fallback: Load from Vanilla Data (Main Menu / No World / Or if Client returned nothing useful)
+            if (!foundAdvancements) {
                 try {
-                    System.out.println("ObjectivePoolHelper: No active world, scanning Vanilla Data for advancements...");
+                    System.out.println("ObjectivePoolHelper: No advancements found from Client, scanning Vanilla Data...");
                     PackResources vanilla = Minecraft.getInstance().getVanillaPackResources();
                     
                     vanilla.listResources(PackType.SERVER_DATA, "minecraft", "advancements", (location, streamSupplier) -> {
@@ -261,10 +264,10 @@ public class ObjectivePoolHelper {
                 } catch (Exception e) {
                     e.printStackTrace();
                 }
-                
-                // Final Fallback: Hardcoded List (to ensure all advancements are present even if dynamic loading fails)
-                populateHardcodedAdvancements(candidates, blacklist, filter);
             }
+                
+            // Final Fallback: Hardcoded List (to ensure all advancements are present even if dynamic loading fails)
+            populateHardcodedAdvancements(candidates, blacklist, filter);
         }
         
         return candidates;

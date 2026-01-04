@@ -6,8 +6,11 @@ import net.minecraft.client.gui.components.Button;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.network.chat.Component;
 import net.minecraft.util.Mth;
+import net.minecraft.ChatFormatting;
+import net.minecraft.world.inventory.tooltip.TooltipComponent;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Optional;
 import java.util.Random;
 
 public class WheelScreen extends Screen {
@@ -221,6 +224,8 @@ public class WheelScreen extends Screen {
         
         guiGraphics.drawCenteredString(this.font, Component.translatable("gui.examplemod.selected_objectives"), this.width / 2, startY - 25, 0xFFFF55);
         
+        Objective hoveredObjective = null;
+
         for (int r = 0; r < rows; r++) {
             int rowStartIndex = r * maxPerRow;
             int rowCount = Math.min(maxPerRow, count - rowStartIndex);
@@ -272,6 +277,12 @@ public class WheelScreen extends Screen {
                     guiGraphics.pose().scale(1.0f/textScale, 1.0f/textScale);
                     guiGraphics.pose().translate(-cx, -(float)(textY + l * (9 * textScale)));
                 }
+
+                // Check for hover
+                // We use a generous hit box covering the icon and some text area
+                if (mouseX >= x && mouseX <= x + itemSize && mouseY >= y && mouseY <= y + rowHeight) {
+                    hoveredObjective = obj;
+                }
             }
         }
         
@@ -279,6 +290,52 @@ public class WheelScreen extends Screen {
         this.confirmButton.setX((this.width - 200) / 2);
         this.confirmButton.setY(startY + rows * rowHeight + 10);
         this.confirmButton.render(guiGraphics, mouseX, mouseY, partialTick);
+
+        // Render Tooltip if hovered
+        if (hoveredObjective != null) {
+             List<Component> tooltip = new ArrayList<>();
+             tooltip.add(hoveredObjective.getDisplayName().copy().withStyle(ChatFormatting.YELLOW));
+             
+             if (hoveredObjective.getDescription() != null && !hoveredObjective.getDescription().getString().isEmpty()) {
+                 tooltip.add(hoveredObjective.getDescription());
+             } else {
+                 // Default description based on type
+                 if (hoveredObjective.getType() == Objective.Type.ITEM || hoveredObjective.getType() == Objective.Type.BLOCK) {
+                     tooltip.add(Component.literal("Obtain this item"));
+                 }
+             }
+             
+             renderCustomTooltip(guiGraphics, tooltip, mouseX, mouseY);
+         }
+     }
+    
+    private void renderCustomTooltip(GuiGraphics guiGraphics, List<Component> text, int x, int y) {
+        if (text.isEmpty()) return;
+        
+        int maxWidth = 0;
+        for (Component c : text) {
+            int w = this.font.width(c);
+            if (w > maxWidth) maxWidth = w;
+        }
+        
+        int lineHeight = 10;
+        int totalHeight = text.size() * lineHeight + 6;
+        int totalWidth = maxWidth + 8;
+        
+        int bx = x + 10;
+        int by = y - 5;
+        
+        // Adjust if off screen
+        if (bx + totalWidth > this.width) bx -= (totalWidth + 20);
+        if (by + totalHeight > this.height) by -= totalHeight;
+        
+        // Background
+        guiGraphics.fill(bx, by, bx + totalWidth, by + totalHeight, 0xF0100010);
+        guiGraphics.renderOutline(bx, by, totalWidth, totalHeight, 0x505000FF); 
+        
+        for (int i = 0; i < text.size(); i++) {
+            guiGraphics.drawString(this.font, text.get(i), bx + 4, by + 4 + (i * lineHeight), 0xFFFFFFFF, false);
+        }
     }
     
     @Override
