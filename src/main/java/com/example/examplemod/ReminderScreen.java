@@ -1,0 +1,141 @@
+package com.example.examplemod;
+
+import net.minecraft.client.gui.GuiGraphics;
+import net.minecraft.client.gui.components.Button;
+import net.minecraft.client.gui.screens.Screen;
+import net.minecraft.network.chat.Component;
+
+import java.util.List;
+
+public class ReminderScreen extends Screen {
+
+    public ReminderScreen() {
+        super(Component.literal("Rappel des Objectifs"));
+    }
+
+    @Override
+    protected void init() {
+        int buttonWidth = 200;
+        int buttonHeight = 20;
+        int spacing = 10;
+        
+        // Button "Fermer" (Close)
+        this.addRenderableWidget(Button.builder(Component.literal("Fermer"), (button) -> {
+            this.onClose();
+        }).bounds(this.width / 2 - buttonWidth / 2, this.height - 40, buttonWidth, buttonHeight).build());
+        
+        // Button "Abandonner (Nouvel Objectif)"
+        // Uses same logic as VictoryScreen "Nouvelle Run"
+        this.addRenderableWidget(Button.builder(Component.literal("Abandonner (Nouvel Objectif)"), (button) -> {
+            SpeedrunState.prepareForNewGame();
+            
+            // Rename world with "Echec" before leaving
+            // SpeedrunRoulette.pendingLevelNewName logic is handled by SpeedrunServerEvents.onClientPlayerLoggedOut
+            // But we need to set the variables first.
+            
+            // Set variables for failure renaming
+            // We can reuse the VictoryScreen logic but set isVictory = false.
+            // Actually SpeedrunState has no direct "setFailure" method, but we can set a flag or just let it happen.
+            // When we disconnect, if objectives are not complete, it's a failure (or just exit).
+            // We want to force the rename.
+            
+            // Let's set the pending name here manually to be sure
+            if (SpeedrunState.getObjectives() != null && !SpeedrunState.getObjectives().isEmpty()) {
+                String objPrefix;
+                if (SpeedrunState.getObjectives().size() > 1) {
+                    objPrefix = "Liste " + SpeedrunState.getObjectives().size() + " items";
+                } else {
+                    objPrefix = SpeedrunState.getObjectives().get(0).getDisplayName().getString();
+                }
+                
+                // Clean prefix
+                objPrefix = objPrefix.replaceAll("[\\\\/:*?\"<>|]", "_");
+                
+                String suffix = " Echec"; // No time
+                String newName = objPrefix + suffix;
+                newName = newName.replaceAll("[\\\\/:*?\"<>|]", "_");
+                
+                SpeedrunRoulette.pendingLevelNewName = newName;
+            }
+
+            boolean isSingleplayer = this.minecraft.isLocalServer();
+             if (this.minecraft.level != null) {
+                this.minecraft.level.disconnect(Component.translatable("menu.disconnect"));
+            }
+            
+            if (isSingleplayer) {
+                this.minecraft.disconnect(new net.minecraft.client.gui.screens.TitleScreen(), false);
+            } else {
+                this.minecraft.disconnect(new net.minecraft.client.gui.screens.TitleScreen(), false);
+            }
+        }).bounds(this.width / 2 - buttonWidth / 2, this.height - 40 - buttonHeight - spacing, buttonWidth, buttonHeight).build());
+    }
+
+    public boolean keyPressed(int keyCode, int scanCode, int modifiers) {
+        if (keyCode == 256) { // ESCAPE
+            this.onClose();
+            return true;
+        }
+        return false;
+    }
+
+    @Override
+    public void render(GuiGraphics guiGraphics, int mouseX, int mouseY, float partialTick) {
+        // Draw full screen dark background for immersion (translucent)
+        guiGraphics.fill(0, 0, this.width, this.height, 0xCC000000);
+        
+        guiGraphics.drawCenteredString(this.font, this.title, this.width / 2, 20, 0xFFFFFFFF);
+        
+        List<Objective> objectives = SpeedrunState.getObjectives();
+        if (objectives.isEmpty()) return;
+        
+        int centerY = this.height / 2;
+        int itemSize = 64; // Large icon size
+        int spacing = 32;
+        int count = objectives.size();
+        
+        // Layout logic (similar to WheelScreen result)
+        // <= 5 items: 1 row
+        // > 5 items: 2 rows (split 5 and count-5)
+        
+        int row1Count = Math.min(count, 5);
+        int row2Count = count > 5 ? count - 5 : 0;
+        
+        int row1Y = (row2Count > 0) ? centerY - 80 : centerY;
+        int row2Y = centerY + 80;
+        
+        renderRow(guiGraphics, objectives, 0, row1Count, row1Y, itemSize, spacing);
+        
+        if (row2Count > 0) {
+            renderRow(guiGraphics, objectives, 5, row2Count, row2Y, itemSize, spacing);
+        }
+        
+        super.render(guiGraphics, mouseX, mouseY, partialTick);
+    }
+
+    private void renderRow(GuiGraphics guiGraphics, List<Objective> objectives, int startIndex, int count, int y, int itemSize, int spacing) {
+        int totalRowWidth = count * itemSize + (count - 1) * spacing;
+        int startX = (this.width - totalRowWidth) / 2;
+        
+        for (int i = 0; i < count; i++) {
+            Objective obj = objectives.get(startIndex + i);
+            int x = startX + i * (itemSize + spacing);
+            
+            // Draw Icon Scaled
+            float cx = x + itemSize/2.0f;
+            float cy = y;
+            
+            guiGraphics.pose().translate(cx, cy);
+            guiGraphics.pose().scale(3.0f, 3.0f); 
+            guiGraphics.renderItem(obj.getIcon(), -8, -8);
+            guiGraphics.pose().scale(1/3.0f, 1/3.0f);
+            guiGraphics.pose().translate(-cx, -cy);
+            
+            // Draw Name
+            Component name = obj.getDisplayName();
+            int nameY = y + 35;
+            int nameWidth = this.font.width(name);
+            guiGraphics.drawString(this.font, name, x + itemSize/2 - nameWidth/2, nameY, 0xFFFFFFFF, true);
+        }
+    }
+}

@@ -1,5 +1,8 @@
 {
-  "itemGroup.examplemod": "Example Mod Tab",
-  "block.examplemod.example_block": "Example Block",
-  "item.examplemod.example_item": "Example Item"
+  "key.examplemod.open_wheel": "Open Speedrun Wheel",
+  "key.examplemod.pause_timer": "Pause Speedrun Timer",
+  "key.examplemod.toggle_hud": "Toggle Speedrun HUD",
+  "key.categories.speedrun_roulette": "Speedrun Roulette",
+  "key.category.examplemod.speedrun_roulette": "Speedrun Roulette",
+  "itemGroup.examplemod": "Speedrun Mod"
 }
