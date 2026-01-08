@@ -19,28 +19,16 @@ public class VictoryScreen extends Screen {
 
         // Rejouer (Même Objectif)
         this.addRenderableWidget(Button.builder(Component.translatable("gui.examplemod.play_again"), (btn) -> {
-            SpeedrunState.prepareForRetry();
+            SpeedrunRoulette.pendingReplay = true;
             
+            // IMMEDIATE RENAME
+            SpeedrunState.updateLevelName(true);
+
             // Standard "Save and Quit" logic
             boolean isSingleplayer = this.minecraft.isLocalServer();
-            // In 1.21, we don't call level.disconnect() directly usually?
-            // PauseScreen uses:
-            // boolean flag = this.minecraft.isLocalServer();
-            // this.minecraft.level.disconnect();
-            // if (flag) { this.minecraft.disconnect(new GenericMessageScreen(Component.translatable("menu.savingLevel"))); }
-            // else { this.minecraft.disconnect(); }
-            
-            // Wait, compiler says disconnect(Screen) expects 2 args: Screen, boolean.
-            // So:
-            
             // Do not call level.disconnect() manually, let minecraft.disconnect() handle it
             
             if (isSingleplayer) {
-                // For singleplayer, passing a screen to disconnect() shows it during saving.
-                // However, if the game doesn't automatically switch to TitleScreen afterwards, we might be stuck.
-                // To be safe, let's use the TitleScreen directly. 
-                // The saving will still happen in background, and the user will see the Title Screen immediately.
-                // This prevents being stuck on "Saving Level" indefinitely if the callback fails.
                 this.minecraft.disconnect(new net.minecraft.client.gui.screens.TitleScreen(), false);
             } else {
                 this.minecraft.disconnect(new net.minecraft.client.gui.screens.TitleScreen(), false);
@@ -50,6 +38,9 @@ public class VictoryScreen extends Screen {
         // Nouvelle Run (Nouveaux Objectifs)
         this.addRenderableWidget(Button.builder(Component.translatable("gui.examplemod.new_run"), (btn) -> {
             SpeedrunRoulette.pendingNewRun = true;
+            
+            // IMMEDIATE RENAME
+            SpeedrunState.updateLevelName(true);
             
             boolean isSingleplayer = this.minecraft.isLocalServer();
              // Do not call level.disconnect() manually, let minecraft.disconnect() handle it
@@ -63,6 +54,9 @@ public class VictoryScreen extends Screen {
 
         // Menu Principal
         this.addRenderableWidget(Button.builder(Component.translatable("gui.examplemod.main_menu"), (btn) -> {
+            // IMMEDIATE RENAME
+            SpeedrunState.updateLevelName(true);
+            
             boolean isSingleplayer = this.minecraft.isLocalServer();
              // Do not call level.disconnect() manually, let minecraft.disconnect() handle it
             

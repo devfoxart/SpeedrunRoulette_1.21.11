@@ -29,10 +29,9 @@ public class ReminderScreen extends Screen {
         this.addRenderableWidget(Button.builder(Component.translatable("gui.examplemod.give_up"), (button) -> {
             SpeedrunRoulette.pendingGiveUp = true;
             
-            // Rename world logic handled in SpeedrunServerEvents.onServerStopping
-            // We just ensure the objectives are available in SpeedrunState
-
-
+            // IMMEDIATE RENAME (to avoid server hang on shutdown)
+            SpeedrunState.updateLevelName(false); // false = Failure/GiveUp
+            
             boolean isSingleplayer = this.minecraft.isLocalServer();
             // Do not call level.disconnect() manually, let minecraft.disconnect() handle it
             

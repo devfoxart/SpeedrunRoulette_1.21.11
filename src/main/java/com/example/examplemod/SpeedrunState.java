@@ -231,6 +231,74 @@ public class SpeedrunState {
         }
     }
 
+    public static void updateLevelName(CreateWorldScreen screen, String name) {
+        try {
+            for (net.minecraft.client.gui.components.events.GuiEventListener child : screen.children()) {
+                if (child instanceof net.minecraft.client.gui.components.EditBox box) {
+                    box.setValue(name);
+                    break;
+                }
+            }
+        } catch (Exception e) {
+        }
+    }
+
+    public static void updateLevelName(boolean isVictory) {
+        Minecraft mc = Minecraft.getInstance();
+        net.minecraft.server.MinecraftServer server = mc.getSingleplayerServer();
+        
+        if (server != null) {
+            server.execute(() -> {
+                try {
+                    net.minecraft.world.level.storage.WorldData wd = server.getWorldData();
+                    String currentDisplayName = wd.getLevelName();
+
+                    if (!currentDisplayName.contains("Echec") && !currentDisplayName.contains("Success") && !currentDisplayName.contains(" - ")) {
+                        
+                        String objPrefix = "";
+                        // Use pending name if set, or calculate from objectives
+                        if (SpeedrunRoulette.pendingVictoryObjectiveName != null) {
+                            objPrefix = SpeedrunRoulette.pendingVictoryObjectiveName;
+                        } else {
+                            List<Objective> objs = getObjectives();
+                            if (objs != null && !objs.isEmpty()) {
+                                if (objs.size() > 1) {
+                                    objPrefix = "Liste de " + objs.size() + " items";
+                                } else {
+                                    objPrefix = objs.get(0).getDisplayName().getString();
+                                }
+                            } else {
+                                objPrefix = "Speedrun";
+                            }
+                        }
+                        
+                        String suffix;
+                        if (isVictory) {
+                            String safeTime = SpeedrunRoulette.pendingVictoryTime != null ? SpeedrunRoulette.pendingVictoryTime.replace(":", " ") : "00 00";
+                            suffix = " - " + safeTime;
+                        } else {
+                            suffix = " - Echec";
+                        }
+                        
+                        String newDisplayName = objPrefix + suffix;
+                        
+                        SpeedrunRoulette.LOGGER.info("IMMEDIATE UPDATE: Setting Level Name to: " + newDisplayName);
+                        
+                        // Try to set level name via reflection
+                        try {
+                            java.lang.reflect.Method m = wd.getClass().getMethod("setLevelName", String.class);
+                            m.invoke(wd, newDisplayName);
+                        } catch (Exception e) {
+                            SpeedrunRoulette.LOGGER.error("Failed to set level name via reflection", e);
+                        }
+                    }
+                } catch (Exception e) {
+                    SpeedrunRoulette.LOGGER.error("Error updating world name", e);
+                }
+            });
+        }
+    }
+
     public static void onClientTick() {
         Minecraft mc = Minecraft.getInstance();
         
