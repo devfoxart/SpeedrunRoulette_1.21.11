@@ -21,12 +21,11 @@ public class VictoryScreen extends Screen {
         this.addRenderableWidget(Button.builder(Component.translatable("gui.examplemod.play_again"), (btn) -> {
             SpeedrunRoulette.pendingReplay = true;
             
-            // IMMEDIATE RENAME
-            SpeedrunState.updateLevelName(true);
+            // Save Run Info (Success)
+            // SpeedrunState.saveRunInfo(true);
 
             // Standard "Save and Quit" logic
             boolean isSingleplayer = this.minecraft.isLocalServer();
-            // Do not call level.disconnect() manually, let minecraft.disconnect() handle it
             
             if (isSingleplayer) {
                 this.minecraft.disconnect(new net.minecraft.client.gui.screens.TitleScreen(), false);
@@ -39,11 +38,10 @@ public class VictoryScreen extends Screen {
         this.addRenderableWidget(Button.builder(Component.translatable("gui.examplemod.new_run"), (btn) -> {
             SpeedrunRoulette.pendingNewRun = true;
             
-            // IMMEDIATE RENAME
-            SpeedrunState.updateLevelName(true);
+            // Save Run Info (Success)
+            // SpeedrunState.saveRunInfo(true);
             
             boolean isSingleplayer = this.minecraft.isLocalServer();
-             // Do not call level.disconnect() manually, let minecraft.disconnect() handle it
             
             if (isSingleplayer) {
                 this.minecraft.disconnect(new net.minecraft.client.gui.screens.TitleScreen(), false);
@@ -54,11 +52,10 @@ public class VictoryScreen extends Screen {
 
         // Menu Principal
         this.addRenderableWidget(Button.builder(Component.translatable("gui.examplemod.main_menu"), (btn) -> {
-            // IMMEDIATE RENAME
-            SpeedrunState.updateLevelName(true);
+            // Save Run Info (Success)
+            // SpeedrunState.saveRunInfo(true);
             
             boolean isSingleplayer = this.minecraft.isLocalServer();
-             // Do not call level.disconnect() manually, let minecraft.disconnect() handle it
             
             if (isSingleplayer) {
                 this.minecraft.disconnect(new net.minecraft.client.gui.screens.TitleScreen(), false);

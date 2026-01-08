@@ -29,11 +29,12 @@ public class ReminderScreen extends Screen {
         this.addRenderableWidget(Button.builder(Component.translatable("gui.examplemod.give_up"), (button) -> {
             SpeedrunRoulette.pendingGiveUp = true;
             
-            // IMMEDIATE RENAME (to avoid server hang on shutdown)
-            SpeedrunState.updateLevelName(false); // false = Failure/GiveUp
+            // Save Run Info (Failure)
+            // SpeedrunState.saveRunInfo(false);
             
             boolean isSingleplayer = this.minecraft.isLocalServer();
-            // Do not call level.disconnect() manually, let minecraft.disconnect() handle it
+            
+            SpeedrunRoulette.LOGGER.info("Give Up clicked. Singleplayer: " + isSingleplayer);
             
             if (isSingleplayer) {
                 this.minecraft.disconnect(new net.minecraft.client.gui.screens.TitleScreen(), false);

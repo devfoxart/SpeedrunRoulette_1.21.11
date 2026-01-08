@@ -2,6 +2,11 @@ package com.example.examplemod;
 
 import com.mojang.logging.LogUtils;
 import net.minecraft.client.Minecraft;
+import net.minecraft.client.gui.components.Button;
+import net.minecraft.client.gui.screens.inventory.tooltip.ClientTooltipComponent;
+import net.minecraft.client.gui.screens.inventory.tooltip.DefaultTooltipPositioner;
+import net.minecraft.client.gui.screens.worldselection.CreateWorldScreen;
+import net.minecraft.client.gui.screens.worldselection.SelectWorldScreen;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.core.registries.Registries;
 import net.minecraft.network.chat.Component;
@@ -44,9 +49,7 @@ public class SpeedrunRoulette {
     public static KeyMapping OPEN_WHEEL_KEY;
     public static KeyMapping PAUSE_TIMER_KEY;
     public static KeyMapping TOGGLE_HUD_KEY;
-
-    public static String pendingLevelRenameId = null;
-    public static String pendingLevelNewName = null;
+    
     public static String pendingVictoryTime = null;
     public static String pendingVictoryObjectiveName = null;
 
@@ -124,6 +127,23 @@ public class SpeedrunRoulette {
                 // We rely on SpeedrunState to handle "isManualPaused" separately.
                 SpeedrunState.onSystemPause(false);
             }
+            
+            // Auto-Navigation for New Run (Moved from Init to Tick to wait for server shutdown)
+             if (SpeedrunState.autoTriggerCreateWorld) {
+                  // Debug Log (Throttled?)
+                  if (mc.player == null && mc.level == null) { // Only log in menus
+                      // SpeedrunRoulette.LOGGER.info("AutoNav: Trigger=true, Server=" + mc.getSingleplayerServer() + ", Screen=" + mc.screen);
+                  }
+
+                  // Only proceed if server is stopped
+                  if (mc.getSingleplayerServer() == null) {
+                       if (mc.screen instanceof net.minecraft.client.gui.screens.TitleScreen) {
+                           SpeedrunRoulette.LOGGER.info("AutoNav: Transitioning TitleScreen -> SelectWorldScreen");
+                           mc.setScreen(new SelectWorldScreen(mc.screen));
+                       } 
+                       // Remove manual OpenFresh call, let SpeedrunState handle button click in SelectWorldScreen
+                  }
+             }
 
             // Folder renaming logic removed as per request to prevent infinite loading.
             // Renaming is now handled by setting LevelName in onServerStopping.
@@ -144,8 +164,146 @@ public class SpeedrunRoulette {
 
         @SubscribeEvent
         public void onScreenInit(ScreenEvent.Init.Post event) {
+            // Button logic removed in favor of icon in list
+            
+            // Handle State Transitions when returning to Title Screen
+            if (event.getScreen() instanceof net.minecraft.client.gui.screens.TitleScreen) {
+                if (SpeedrunRoulette.pendingGiveUp || SpeedrunRoulette.pendingNewRun) {
+                    LOGGER.info("TitleScreen: Preparing for New Game (Clear Objectives)");
+                    SpeedrunState.prepareForNewGame();
+                } else if (SpeedrunRoulette.pendingReplay) {
+                    LOGGER.info("TitleScreen: Preparing for Retry (Keep Objectives)");
+                    SpeedrunState.prepareForRetry();
+                }
+                
+                // Reset Flags
+                if (SpeedrunRoulette.pendingGiveUp || SpeedrunRoulette.pendingNewRun || SpeedrunRoulette.pendingReplay) {
+                    SpeedrunRoulette.pendingGiveUp = false;
+                    SpeedrunRoulette.pendingNewRun = false;
+                    SpeedrunRoulette.pendingReplay = false;
+                    SpeedrunRoulette.pendingVictoryTime = null;
+                    SpeedrunRoulette.pendingVictoryObjectiveName = null;
+                }
+            }
+
+            // Auto-Navigation moved to ClientTick
+            /*
+            if (SpeedrunState.autoTriggerCreateWorld) {
+                 if (event.getScreen() instanceof net.minecraft.client.gui.screens.TitleScreen) {
+                     // Go to Select World
+                     Minecraft.getInstance().setScreen(new SelectWorldScreen(event.getScreen()));
+                 } else if (event.getScreen() instanceof SelectWorldScreen) {
+                     // Go to Create World
+                     CreateWorldScreen.openFresh(Minecraft.getInstance(), null);
+                 }
+            }
+            */
+
             SpeedrunState.onScreenInit(event);
             // We rely on ClientTick to handle pause state now.
+        }
+
+        @SubscribeEvent
+        public void onScreenRender(ScreenEvent.Render.Post event) {
+            if (event.getScreen() instanceof net.minecraft.client.gui.screens.worldselection.SelectWorldScreen screen) {
+                 net.minecraft.client.gui.screens.worldselection.WorldSelectionList list = null;
+                 for (net.minecraft.client.gui.components.events.GuiEventListener child : screen.children()) {
+                    if (child instanceof net.minecraft.client.gui.screens.worldselection.WorldSelectionList l) {
+                        list = l;
+                        break;
+                    }
+                }
+                
+                if (list == null) return;
+                
+                try {
+                    // Reflection to access list properties
+                    java.lang.reflect.Method getRowTop = net.minecraft.client.gui.components.AbstractSelectionList.class.getDeclaredMethod("getRowTop", int.class);
+                    getRowTop.setAccessible(true);
+                    
+                    java.lang.reflect.Method getRowLeft = net.minecraft.client.gui.components.AbstractSelectionList.class.getDeclaredMethod("getRowLeft");
+                    getRowLeft.setAccessible(true);
+                    
+                    java.lang.reflect.Method getRowWidth = net.minecraft.client.gui.components.AbstractSelectionList.class.getDeclaredMethod("getRowWidth");
+                    getRowWidth.setAccessible(true);
+                    
+                    java.util.List<?> children = list.children();
+                    int mouseX = event.getMouseX();
+                    int mouseY = event.getMouseY();
+                    
+                    int rowLeft = (int) getRowLeft.invoke(list);
+                    int rowWidth = (int) getRowWidth.invoke(list);
+                    
+                    for (int i = 0; i < children.size(); i++) {
+                         Object entryObj = children.get(i);
+                         if (entryObj instanceof net.minecraft.client.gui.screens.worldselection.WorldSelectionList.WorldListEntry entry) {
+                             int top = (int) getRowTop.invoke(list, i);
+                             
+                             // Check visibility (simplified)
+                             if (top < 0 || top > screen.height) continue;
+                             
+                             java.lang.reflect.Field summaryField = net.minecraft.client.gui.screens.worldselection.WorldSelectionList.WorldListEntry.class.getDeclaredField("summary");
+                             summaryField.setAccessible(true);
+                             net.minecraft.world.level.storage.LevelSummary summary = (net.minecraft.world.level.storage.LevelSummary) summaryField.get(entry);
+                             
+                             SpeedrunState.RunInfo info = SpeedrunState.getRunInfo(summary.getLevelId());
+                             
+                             if (info.hasInfo) {
+                                 // Icon Position: Right side of entry
+                                 int x = rowLeft + rowWidth - 30; 
+                                 int y = top + 2;
+                                 
+                                 net.minecraft.client.gui.GuiGraphics g = event.getGuiGraphics();
+                                 String icon = info.isVictory ? "★" : "☠";
+                                 int color = info.isVictory ? 0xFF55FF55 : 0xFFFF5555;
+                                 
+                                 g.pose().translate(x, y);
+                                 g.pose().scale(1.5f, 1.5f);
+                                 g.drawString(Minecraft.getInstance().font, icon, 0, 0, color, false);
+                                 g.pose().scale(1/1.5f, 1/1.5f);
+                                 g.pose().translate(-x, -y);
+                                 
+                                 // Hover Area (approx 15x15)
+                                 if (mouseX >= x && mouseX <= x + 15 && mouseY >= y && mouseY <= y + 15) {
+                                     List<Component> tooltip = new java.util.ArrayList<>();
+                                     tooltip.add(Component.literal(info.isVictory ? "Victoire !" : "Echec").withStyle(info.isVictory ? net.minecraft.ChatFormatting.GREEN : net.minecraft.ChatFormatting.RED));
+                                     tooltip.add(Component.literal("Temps: " + info.time).withStyle(net.minecraft.ChatFormatting.YELLOW));
+                                     tooltip.add(Component.literal("Objectif: " + info.objective).withStyle(net.minecraft.ChatFormatting.GRAY));
+                                     
+                                     String date = new java.text.SimpleDateFormat("dd/MM HH:mm").format(new java.util.Date(info.timestamp));
+                                     tooltip.add(Component.literal(date).withStyle(net.minecraft.ChatFormatting.DARK_GRAY));
+                                     
+                                     java.util.List<ClientTooltipComponent> components = tooltip.stream()
+                                         .map(c -> ClientTooltipComponent.create(c.getVisualOrderText()))
+                                         .collect(java.util.stream.Collectors.toList());
+                                         
+                                     // Assuming renderTooltip(Font, List<ClientTooltipComponent>, int, int, ClientTooltipPositioner)
+                                     // Or maybe identifier is needed?
+                                     // The error said: renderTooltip(Font,List<ClientTooltipComponent>,int,int,ClientTooltipPositioner,Identifier)
+                                     // I can pass null for Identifier?
+                                     
+                                     // Let's try passing null for Identifier if required.
+                                     // Or maybe there is an overload without Identifier?
+                                     // Error said: (Font, List, int, int, Positioner, Identifier)
+                                     // So I must provide Identifier?
+                                     
+                                     // What Identifier? Texture?
+                                     // Maybe null works.
+                                     
+                                     // Wait, there was NO method with 5 args?
+                                     // Error said: "method ... is not applicable (actual and formal argument lists differ in length)"
+                                     // I called it with 5 args (Font, List, Optional, int, int).
+                                     // It expected 6 args (Font, List, int, int, Positioner, Identifier).
+                                     
+                                     g.renderTooltip(Minecraft.getInstance().font, components, mouseX, mouseY, DefaultTooltipPositioner.INSTANCE, null);
+                                 }
+                             }
+                         }
+                    }
+                } catch (Throwable t) {
+                    // ignore
+                }
+            }
         }
 
         @SubscribeEvent
@@ -166,6 +324,7 @@ public class SpeedrunRoulette {
     public static class SpeedrunServerEvents {
         @SubscribeEvent
         public void onPlayerLoggedIn(net.neoforged.neoforge.event.entity.player.PlayerEvent.PlayerLoggedInEvent event) {
+            /*
             if (event.getEntity() instanceof ServerPlayer player) {
                 net.minecraft.server.MinecraftServer server = null;
                 if (player.level() instanceof net.minecraft.server.level.ServerLevel serverLevel) {
@@ -178,58 +337,30 @@ public class SpeedrunRoulette {
                     if (!saved.isEmpty()) {
                         // Direct sync for Singleplayer
                         SpeedrunState.setObjectives(saved, false);
-                        // Also ensure timer is started if not running?
-                        // User didn't specify, but usually yes.
-                        // But wait, if we reload the world, we lose the 'startTime'.
-                        // We should probably save the timer state too if we want true persistence.
-                        // But user only asked for "World Locking" (objectives fixed).
-                        // "le monde est "bloqué" avec cette item le roue ne peut pas etre retoruner".
-                        // It doesn't explicitly say "Timer must resume exactly where left off".
-                        // But "renommé nom de l'objetif + echec" implies tracking.
-                        // If we reload, and timer is 0, it's a fresh run with SAME objectives.
-                        // That seems consistent with "World Locking".
-                        // So we just set objectives.
                     } else {
                         // Clear objectives for new world (or world with no saved objectives)
                         SpeedrunState.clearObjectives();
                     }
                 }
             }
+            */
         }
 
         @SubscribeEvent
         public void onClientPlayerLoggedOut(ClientPlayerNetworkEvent.LoggingOut event) {
-            SpeedrunRoulette.hasCheckedAutoOpen = false;
-            SpeedrunState.markObjectivesStale();
+            // SpeedrunRoulette.hasCheckedAutoOpen = false;
+            // SpeedrunState.markObjectivesStale();
         }
 
         @SubscribeEvent
         public void onServerStopping(ServerStoppingEvent event) {
-            // Renaming is now handled immediately on button press via SpeedrunState.updateLevelName()
-            // to avoid hanging during server shutdown.
-
-            // Handle State Transitions (Prepare for Next Run)
-            // We do this here to ensure objectives are cleared for the next session if needed.
-            if (SpeedrunRoulette.pendingGiveUp || SpeedrunRoulette.pendingNewRun) {
-                LOGGER.info("ServerStopping: Preparing for New Game (Clear Objectives)");
-                SpeedrunState.prepareForNewGame();
-            } else if (SpeedrunRoulette.pendingReplay) {
-                LOGGER.info("ServerStopping: Preparing for Retry (Keep Objectives)");
-                SpeedrunState.prepareForRetry();
-            }
-            
-            // Reset Flags
-            SpeedrunRoulette.pendingGiveUp = false;
-            SpeedrunRoulette.pendingNewRun = false;
-            SpeedrunRoulette.pendingReplay = false;
-            SpeedrunRoulette.pendingVictoryTime = null;
-            SpeedrunRoulette.pendingVictoryObjectiveName = null;
-            SpeedrunRoulette.pendingLevelNewName = null;
+            // LOGGER.info("ServerStopping: World saving...");
         }
 
 
         @SubscribeEvent
         public void onAdvancementProgress(AdvancementEvent.AdvancementProgressEvent event) {
+            /*
             if (event.getEntity() instanceof net.minecraft.server.level.ServerPlayer player) {
                 List<Objective> objs = SpeedrunState.getObjectives();
                 if (objs != null) {
@@ -246,6 +377,7 @@ public class SpeedrunRoulette {
                     }
                 }
             }
+            */
         }
     }
 }

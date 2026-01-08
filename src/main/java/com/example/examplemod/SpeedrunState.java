@@ -4,6 +4,7 @@ import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.components.Button;
 import net.minecraft.client.gui.screens.TitleScreen;
+import net.minecraft.client.gui.screens.ConfirmScreen;
 import net.minecraft.client.gui.screens.worldselection.CreateWorldScreen;
 import net.minecraft.network.chat.Component;
 import net.minecraft.world.entity.player.Player;
@@ -18,6 +19,9 @@ import net.minecraft.world.level.levelgen.structure.Structure;
 import net.minecraft.world.level.levelgen.structure.StructureStart;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.core.registries.Registries;
+import net.minecraft.nbt.CompoundTag;
+import net.minecraft.nbt.NbtIo;
+import java.io.File;
 
 public class SpeedrunState {
     private static List<Objective> objectives = Collections.emptyList();
@@ -46,14 +50,14 @@ public class SpeedrunState {
     public static boolean keepObjectivesForNextRun = false;
 
     public static void prepareForRetry() {
-        keepObjectivesForNextRun = true;
-        autoTriggerCreateWorld = true;
+        // keepObjectivesForNextRun = true;
+        // autoTriggerCreateWorld = true;
         resetTimer();
     }
 
     public static void prepareForNewGame() {
         keepObjectivesForNextRun = false;
-        autoTriggerCreateWorld = true;
+        // autoTriggerCreateWorld = true;
         resetTimer();
     }
 
@@ -231,71 +235,150 @@ public class SpeedrunState {
         }
     }
 
-    public static void updateLevelName(CreateWorldScreen screen, String name) {
+    public static void saveRunInfo(boolean isVictory) {
+        net.minecraft.server.MinecraftServer server = Minecraft.getInstance().getSingleplayerServer();
+        if (server == null) return;
+        
+        String levelId = getLevelId(server);
+        if (levelId == null) return;
+        
+        File savesDir = Minecraft.getInstance().gameDirectory.toPath().resolve("saves").toFile();
+        File levelDir = new File(savesDir, levelId);
+        File infoFile = new File(levelDir, "speedrun_info.nbt");
+        
         try {
-            for (net.minecraft.client.gui.components.events.GuiEventListener child : screen.children()) {
-                if (child instanceof net.minecraft.client.gui.components.EditBox box) {
-                    box.setValue(name);
-                    break;
+            CompoundTag tag = new CompoundTag();
+            tag.putBoolean("isVictory", isVictory);
+            tag.putString("time", SpeedrunRoulette.pendingVictoryTime != null ? SpeedrunRoulette.pendingVictoryTime : currentFormattedTime());
+            tag.putLong("timestamp", System.currentTimeMillis());
+            
+            // Save Objectives summary
+            List<Objective> objs = getObjectives();
+            if (!objs.isEmpty()) {
+                if (objs.size() > 1) {
+                    tag.putString("objectiveName", "Liste de " + objs.size() + " items");
+                } else {
+                    tag.putString("objectiveName", objs.get(0).getDisplayName().getString());
                 }
+            } else {
+                tag.putString("objectiveName", "Speedrun");
             }
+            
+            NbtIo.writeCompressed(tag, infoFile.toPath());
+            SpeedrunRoulette.LOGGER.info("Saved run info to " + infoFile.getAbsolutePath());
         } catch (Exception e) {
+            SpeedrunRoulette.LOGGER.error("Failed to save run info", e);
         }
     }
 
-    public static void updateLevelName(boolean isVictory) {
-        Minecraft mc = Minecraft.getInstance();
-        net.minecraft.server.MinecraftServer server = mc.getSingleplayerServer();
-        
-        if (server != null) {
-            server.execute(() -> {
-                try {
-                    net.minecraft.world.level.storage.WorldData wd = server.getWorldData();
-                    String currentDisplayName = wd.getLevelName();
+    public static String getLevelId(net.minecraft.server.MinecraftServer server) {
+        try {
+            // Try standard mapping name 'storageSource'
+            java.lang.reflect.Field f = net.minecraft.server.MinecraftServer.class.getDeclaredField("storageSource");
+            f.setAccessible(true);
+            Object storage = f.get(server);
+            java.lang.reflect.Method m = storage.getClass().getMethod("getLevelId");
+            return (String) m.invoke(storage);
+        } catch (Exception e) {
+            // Try obfuscated fallback or just return null
+            SpeedrunRoulette.LOGGER.error("Failed to get level ID via reflection", e);
+            return null;
+        }
+    }
 
-                    if (!currentDisplayName.contains("Echec") && !currentDisplayName.contains("Success") && !currentDisplayName.contains(" - ")) {
-                        
-                        String objPrefix = "";
-                        // Use pending name if set, or calculate from objectives
-                        if (SpeedrunRoulette.pendingVictoryObjectiveName != null) {
-                            objPrefix = SpeedrunRoulette.pendingVictoryObjectiveName;
-                        } else {
-                            List<Objective> objs = getObjectives();
-                            if (objs != null && !objs.isEmpty()) {
-                                if (objs.size() > 1) {
-                                    objPrefix = "Liste de " + objs.size() + " items";
-                                } else {
-                                    objPrefix = objs.get(0).getDisplayName().getString();
-                                }
-                            } else {
-                                objPrefix = "Speedrun";
-                            }
-                        }
-                        
-                        String suffix;
-                        if (isVictory) {
-                            String safeTime = SpeedrunRoulette.pendingVictoryTime != null ? SpeedrunRoulette.pendingVictoryTime.replace(":", " ") : "00 00";
-                            suffix = " - " + safeTime;
-                        } else {
-                            suffix = " - Echec";
-                        }
-                        
-                        String newDisplayName = objPrefix + suffix;
-                        
-                        SpeedrunRoulette.LOGGER.info("IMMEDIATE UPDATE: Setting Level Name to: " + newDisplayName);
-                        
-                        // Try to set level name via reflection
-                        try {
-                            java.lang.reflect.Method m = wd.getClass().getMethod("setLevelName", String.class);
-                            m.invoke(wd, newDisplayName);
-                        } catch (Exception e) {
-                            SpeedrunRoulette.LOGGER.error("Failed to set level name via reflection", e);
-                        }
-                    }
-                } catch (Exception e) {
-                    SpeedrunRoulette.LOGGER.error("Error updating world name", e);
-                }
-            });
+
+
+    // Run Info Cache
+    public static class RunInfo {
+        public boolean hasInfo;
+        public boolean isVictory;
+        public String time;
+        public String objective;
+        public long timestamp;
+        
+        public RunInfo(boolean v, String t, String o, long ts) {
+            this.hasInfo = true;
+            this.isVictory = v;
+            this.time = t;
+            this.objective = o;
+            this.timestamp = ts;
+        }
+        public RunInfo() { this.hasInfo = false; }
+    }
+    
+    private static final java.util.Map<String, RunInfo> runInfoCache = new java.util.HashMap<>();
+    
+    public static RunInfo getRunInfo(String levelId) {
+        if (runInfoCache.containsKey(levelId)) return runInfoCache.get(levelId);
+        
+        File savesDir = Minecraft.getInstance().gameDirectory.toPath().resolve("saves").toFile();
+        File levelDir = new File(savesDir, levelId);
+        File infoFile = new File(levelDir, "speedrun_info.nbt");
+        
+        if (infoFile.exists()) {
+            try {
+                CompoundTag tag = NbtIo.readCompressed(infoFile.toPath(), net.minecraft.nbt.NbtAccounter.unlimitedHeap());
+                boolean v = tag.getBoolean("isVictory").orElse(false);
+                String t = tag.getString("time").orElse("??");
+                String o = tag.getString("objectiveName").orElse("??");
+                long ts = tag.getLong("timestamp").orElse(0L);
+                RunInfo info = new RunInfo(v, t, o, ts);
+                runInfoCache.put(levelId, info);
+                return info;
+            } catch (Exception e) {
+                runInfoCache.put(levelId, new RunInfo());
+                return new RunInfo();
+            }
+        } else {
+            runInfoCache.put(levelId, new RunInfo());
+            return new RunInfo();
+        }
+    }
+
+    public static void showRunInfo(net.minecraft.client.gui.screens.Screen parent, String levelId) {
+        File savesDir = Minecraft.getInstance().gameDirectory.toPath().resolve("saves").toFile();
+        File levelDir = new File(savesDir, levelId);
+        File infoFile = new File(levelDir, "speedrun_info.nbt");
+        
+        if (infoFile.exists()) {
+            try {
+                CompoundTag tag = NbtIo.readCompressed(infoFile.toPath(), net.minecraft.nbt.NbtAccounter.unlimitedHeap());
+                boolean isVictory = tag.getBoolean("isVictory").orElse(false);
+                String time = tag.getString("time").orElse("00:00");
+                String objName = tag.getString("objectiveName").orElse("Unknown");
+                long timestamp = tag.getLong("timestamp").orElse(0L);
+                String date = new java.text.SimpleDateFormat("dd/MM/yyyy HH:mm").format(new java.util.Date(timestamp));
+                
+                String title = isVictory ? "Victoire !" : "Echec";
+                int color = isVictory ? 0xFF55FF55 : 0xFFFF5555;
+                
+                Component msg = Component.literal(title).withStyle(style -> style.withColor(color).withBold(true))
+                    .append("\n\n")
+                    .append(Component.literal("Objectif: " + objName).withStyle(net.minecraft.ChatFormatting.WHITE))
+                    .append("\n")
+                    .append(Component.literal("Temps: " + time).withStyle(net.minecraft.ChatFormatting.YELLOW))
+                    .append("\n")
+                    .append(Component.literal("Date: " + date).withStyle(net.minecraft.ChatFormatting.GRAY));
+                
+                Minecraft.getInstance().setScreen(new net.minecraft.client.gui.screens.ConfirmScreen(
+                    (yes) -> Minecraft.getInstance().setScreen(parent),
+                    Component.literal("Infos de la Run"),
+                    msg,
+                    Component.literal("Fermer"),
+                    Component.literal("") 
+                ));
+                
+            } catch (Exception e) {
+                SpeedrunRoulette.LOGGER.error("Failed to read run info", e);
+            }
+        } else {
+             Minecraft.getInstance().setScreen(new net.minecraft.client.gui.screens.ConfirmScreen(
+                (yes) -> Minecraft.getInstance().setScreen(parent),
+                Component.literal("Infos de la Run"),
+                Component.literal("Aucune information enregistrée pour ce monde."),
+                Component.literal("Fermer"),
+                Component.literal("")
+            ));
         }
     }
 
@@ -896,15 +979,18 @@ public class SpeedrunState {
         
         if (event.getScreen() instanceof net.minecraft.client.gui.screens.worldselection.SelectWorldScreen) {
             if (autoTriggerCreateWorld) {
+                 // com.example.examplemod.SpeedrunRoulette.LOGGER.info("SpeedrunState: Searching for 'Create New World' button in SelectWorldScreen...");
                  for (net.minecraft.client.gui.components.events.GuiEventListener child : event.getScreen().children()) {
                     if (child instanceof Button btn) {
                         if (btn.getMessage().equals(Component.translatable("selectWorld.create"))) {
+                             com.example.examplemod.SpeedrunRoulette.LOGGER.info("SpeedrunState: Clicking 'Create New World'");
                              try {
                                  java.lang.reflect.Field f = net.minecraft.client.gui.components.Button.class.getDeclaredField("onPress");
                                  f.setAccessible(true);
                                  net.minecraft.client.gui.components.Button.OnPress onPress = (net.minecraft.client.gui.components.Button.OnPress) f.get(btn);
                                  onPress.onPress(btn);
                              } catch (Throwable t) {
+                                 com.example.examplemod.SpeedrunRoulette.LOGGER.error("SpeedrunState: Failed to click Create button", t);
                              }
                              break;
                         }
@@ -916,11 +1002,13 @@ public class SpeedrunState {
         // Handle CreateWorldScreen init too (try to click immediately if active)
         if (event.getScreen() instanceof CreateWorldScreen) {
             if (autoTriggerCreateWorld) {
+                 // com.example.examplemod.SpeedrunRoulette.LOGGER.info("SpeedrunState: Searching for 'Create' button in CreateWorldScreen...");
                  for (net.minecraft.client.gui.components.events.GuiEventListener child : event.getScreen().children()) {
                     if (child instanceof Button btn) {
                         if (btn.getMessage().equals(Component.translatable("selectWorld.create"))) {
                              // Only click if active!
                              if (btn.active) {
+                                 com.example.examplemod.SpeedrunRoulette.LOGGER.info("SpeedrunState: Clicking 'Create' (Final)");
                                  autoTriggerCreateWorld = false;
                                  try {
                                      java.lang.reflect.Field f = net.minecraft.client.gui.components.Button.class.getDeclaredField("onPress");
@@ -928,7 +1016,10 @@ public class SpeedrunState {
                                      net.minecraft.client.gui.components.Button.OnPress onPress = (net.minecraft.client.gui.components.Button.OnPress) f.get(btn);
                                      onPress.onPress(btn);
                                  } catch (Throwable t) {
+                                     com.example.examplemod.SpeedrunRoulette.LOGGER.error("SpeedrunState: Failed to click Final Create button", t);
                                  }
+                             } else {
+                                 com.example.examplemod.SpeedrunRoulette.LOGGER.info("SpeedrunState: Final Create button not active yet.");
                              }
                              break;
                         }
