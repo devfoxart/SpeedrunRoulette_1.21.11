@@ -27,36 +27,11 @@ public class ReminderScreen extends Screen {
         // Button "Abandonner (Nouvel Objectif)"
         // Uses same logic as VictoryScreen "Nouvelle Run"
         this.addRenderableWidget(Button.builder(Component.translatable("gui.examplemod.give_up"), (button) -> {
-            SpeedrunState.prepareForNewGame();
+            SpeedrunRoulette.pendingGiveUp = true;
             
-            // Rename world with "Echec" before leaving
-            // SpeedrunRoulette.pendingLevelNewName logic is handled by SpeedrunServerEvents.onClientPlayerLoggedOut
-            // But we need to set the variables first.
-            
-            // Set variables for failure renaming
-            // We can reuse the VictoryScreen logic but set isVictory = false.
-            // Actually SpeedrunState has no direct "setFailure" method, but we can set a flag or just let it happen.
-            // When we disconnect, if objectives are not complete, it's a failure (or just exit).
-            // We want to force the rename.
-            
-            // Let's set the pending name here manually to be sure
-            if (SpeedrunState.getObjectives() != null && !SpeedrunState.getObjectives().isEmpty()) {
-                String objPrefix;
-                if (SpeedrunState.getObjectives().size() > 1) {
-                    objPrefix = Component.translatable("gui.examplemod.list_prefix", SpeedrunState.getObjectives().size()).getString();
-                } else {
-                    objPrefix = SpeedrunState.getObjectives().get(0).getDisplayName().getString();
-                }
-                
-                // Clean prefix
-                objPrefix = objPrefix.replaceAll("[\\\\/:*?\"<>|]", "_");
-                
-                String suffix = Component.translatable("gui.examplemod.failed_suffix").getString(); // No time
-                String newName = objPrefix + suffix;
-                newName = newName.replaceAll("[\\\\/:*?\"<>|]", "_");
-                
-                SpeedrunRoulette.pendingLevelNewName = newName;
-            }
+            // Rename world logic handled in SpeedrunServerEvents.onServerStopping
+            // We just ensure the objectives are available in SpeedrunState
+
 
             boolean isSingleplayer = this.minecraft.isLocalServer();
             // Do not call level.disconnect() manually, let minecraft.disconnect() handle it

@@ -234,6 +234,11 @@ public class SpeedrunState {
     public static void onClientTick() {
         Minecraft mc = Minecraft.getInstance();
         
+        // Safety: If we are in the process of giving up or restarting, do NOT run tick logic
+        if (SpeedrunRoulette.pendingGiveUp || SpeedrunRoulette.pendingReplay || SpeedrunRoulette.pendingNewRun) {
+            return;
+        }
+
         // Safety: Ensure timer is not running if WheelScreen is open
         if (mc.screen instanceof WheelScreen && timerRunning) {
             resetTimer();

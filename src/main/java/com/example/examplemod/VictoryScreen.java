@@ -49,7 +49,7 @@ public class VictoryScreen extends Screen {
 
         // Nouvelle Run (Nouveaux Objectifs)
         this.addRenderableWidget(Button.builder(Component.translatable("gui.examplemod.new_run"), (btn) -> {
-            SpeedrunState.prepareForNewGame();
+            SpeedrunRoulette.pendingNewRun = true;
             
             boolean isSingleplayer = this.minecraft.isLocalServer();
              // Do not call level.disconnect() manually, let minecraft.disconnect() handle it

@@ -6,8 +6,6 @@ import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.core.registries.Registries;
 import net.minecraft.network.chat.Component;
 import net.minecraft.world.item.CreativeModeTab;
-import net.minecraft.world.item.CreativeModeTabs;
-import net.minecraft.world.level.block.Blocks;
 import net.neoforged.api.distmarker.Dist;
 import net.neoforged.bus.api.IEventBus;
 import net.neoforged.bus.api.SubscribeEvent;
@@ -19,7 +17,6 @@ import net.neoforged.fml.event.lifecycle.FMLCommonSetupEvent;
 import net.neoforged.neoforge.client.event.ClientPlayerNetworkEvent;
 import net.neoforged.neoforge.client.event.ClientTickEvent;
 import net.neoforged.neoforge.client.event.RegisterKeyMappingsEvent;
-import net.neoforged.neoforge.client.event.RenderGuiEvent;
 import net.neoforged.neoforge.client.event.ScreenEvent;
 import net.neoforged.neoforge.common.NeoForge;
 import net.neoforged.neoforge.event.entity.player.AdvancementEvent;
@@ -52,6 +49,10 @@ public class SpeedrunRoulette {
     public static String pendingLevelNewName = null;
     public static String pendingVictoryTime = null;
     public static String pendingVictoryObjectiveName = null;
+
+    public static boolean pendingGiveUp = false;
+    public static boolean pendingReplay = false;
+    public static boolean pendingNewRun = false;
     
     // Auto-open wheel state
     public static boolean hasCheckedAutoOpen = false;
@@ -124,29 +125,9 @@ public class SpeedrunRoulette {
                 SpeedrunState.onSystemPause(false);
             }
 
-            if (SpeedrunRoulette.pendingLevelRenameId != null) {
-                if (mc.getSingleplayerServer() == null) {
-                    String levelId = SpeedrunRoulette.pendingLevelRenameId;
-                    String newName = SpeedrunRoulette.pendingLevelNewName;
-                    SpeedrunRoulette.pendingLevelRenameId = null; 
-                    SpeedrunRoulette.pendingLevelNewName = null;
-                    
-                    LOGGER.info("ClientTick: Server stopped. Renaming level " + levelId + " to " + newName);
-                    
-                    try {
-                        net.minecraft.world.level.storage.LevelStorageSource source = mc.getLevelSource();
-                        if (source.levelExists(levelId)) {
-                            try (net.minecraft.world.level.storage.LevelStorageSource.LevelStorageAccess access = source.createAccess(levelId)) {
-                                access.renameLevel(newName);
-                                LOGGER.info("ClientTick: Level renamed successfully via LevelStorageAccess!");
-                            }
-                        }
-                    } catch (Exception e) {
-                        LOGGER.error("ClientTick: Failed to rename level: " + e.getMessage());
-                        e.printStackTrace();
-                    }
-                }
-            }
+            // Folder renaming logic removed as per request to prevent infinite loading.
+            // Renaming is now handled by setting LevelName in onServerStopping.
+
 
             if (OPEN_WHEEL_KEY != null && OPEN_WHEEL_KEY.consumeClick()) {
                 SpeedrunState.openWheelOrReminder();
@@ -208,6 +189,9 @@ public class SpeedrunRoulette {
                         // If we reload, and timer is 0, it's a fresh run with SAME objectives.
                         // That seems consistent with "World Locking".
                         // So we just set objectives.
+                    } else {
+                        // Clear objectives for new world (or world with no saved objectives)
+                        SpeedrunState.clearObjectives();
                     }
                 }
             }
@@ -223,72 +207,77 @@ public class SpeedrunRoulette {
         public void onServerStopping(ServerStoppingEvent event) {
             net.minecraft.server.MinecraftServer server = event.getServer();
             
+            // 1. Handle Level Renaming (In-World Notes)
             boolean isVictory = SpeedrunRoulette.pendingVictoryTime != null;
+            boolean isGiveUp = SpeedrunRoulette.pendingGiveUp;
             boolean isActive = SpeedrunState.hasActiveObjectives();
 
-            if (server.isSingleplayer() && (isVictory || (isActive && !SpeedrunState.isCompleted()))) {
+            // We rename if it's a Victory OR if we are Giving Up (and have active objectives)
+            // If just quitting to menu without GiveUp/Victory, we don't rename (keep existing name).
+            if (server.isSingleplayer() && (isVictory || (isGiveUp && isActive))) {
                 try {
                     net.minecraft.world.level.storage.WorldData wd = server.getWorldData();
                     String currentDisplayName = wd.getLevelName();
 
                     if (!currentDisplayName.contains("Echec") && !currentDisplayName.contains("Success") && !currentDisplayName.contains(" - ")) {
-                        String folderName = null;
-                        try {
-                             java.lang.reflect.Field f = net.minecraft.server.MinecraftServer.class.getDeclaredField("storageSource");
-                             f.setAccessible(true);
-                             Object storageSource = f.get(server);
-                             java.lang.reflect.Method m = storageSource.getClass().getMethod("getLevelId");
-                             folderName = (String) m.invoke(storageSource);
-                        } catch (Exception ex) {
-                             LOGGER.error("Failed to get level folder name via reflection: " + ex.getMessage());
-                        }
-
-                        if (folderName != null) {
-                            SpeedrunRoulette.pendingLevelRenameId = folderName;
-                            
-                            String objPrefix = "";
-                            // Always fetch current name info from state if not set
-                            if (SpeedrunRoulette.pendingVictoryObjectiveName != null) {
-                                objPrefix = SpeedrunRoulette.pendingVictoryObjectiveName;
-                            } else {
-                                List<Objective> objs = SpeedrunState.getObjectives();
-                                if (objs != null && !objs.isEmpty()) {
-                                    if (objs.size() > 1) {
-                                        objPrefix = "Liste de " + objs.size() + " items";
-                                    } else {
-                                        objPrefix = objs.get(0).getDisplayName().getString();
-                                    }
+                        
+                        String objPrefix = "";
+                        // Use pending name if set, or calculate from objectives
+                        if (SpeedrunRoulette.pendingVictoryObjectiveName != null) {
+                            objPrefix = SpeedrunRoulette.pendingVictoryObjectiveName;
+                        } else {
+                            List<Objective> objs = SpeedrunState.getObjectives();
+                            if (objs != null && !objs.isEmpty()) {
+                                if (objs.size() > 1) {
+                                    objPrefix = "Liste de " + objs.size() + " items";
                                 } else {
-                                    objPrefix = "Speedrun";
+                                    objPrefix = objs.get(0).getDisplayName().getString();
                                 }
-                            }
-                            
-                            String suffix;
-                            if (isVictory) {
-                                // Replace colons with spaces to avoid sanitation to underscores
-                                String safeTime = SpeedrunRoulette.pendingVictoryTime.replace(":", " ");
-                                suffix = " " + safeTime;
                             } else {
-                                // Just "Name Echec" as requested
-                                suffix = " Echec";
+                                objPrefix = "Speedrun";
                             }
-                            
-                            // Sanitize filename
-                            String newName = objPrefix + suffix;
-                            // Replace illegal characters
-                            newName = newName.replaceAll("[\\\\/:*?\"<>|]", "_");
-                            
-                            SpeedrunRoulette.pendingLevelNewName = newName;
-                            
-                            // Reset victory state for next run
-                            SpeedrunRoulette.pendingVictoryTime = null;
-                            SpeedrunRoulette.pendingVictoryObjectiveName = null;
+                        }
+                        
+                        String suffix;
+                        if (isVictory) {
+                            String safeTime = SpeedrunRoulette.pendingVictoryTime != null ? SpeedrunRoulette.pendingVictoryTime.replace(":", " ") : "00 00";
+                            suffix = " - " + safeTime;
+                        } else {
+                            suffix = " - Echec";
+                        }
+                        
+                        String newDisplayName = objPrefix + suffix;
+                        
+                        LOGGER.info("ServerStopping: Updating Level Name to: " + newDisplayName);
+                        try {
+                            java.lang.reflect.Method m = wd.getClass().getMethod("setLevelName", String.class);
+                            m.invoke(wd, newDisplayName);
+                        } catch (Exception e) {
+                            LOGGER.error("Failed to set level name via reflection", e);
                         }
                     }
                 } catch (Exception e) {
                     LOGGER.error("ServerStopping: Error getting world name", e);
                 }
             }
+
+            // 2. Handle State Transitions (Prepare for Next Run)
+            // We do this AFTER renaming so that objectives are still available for renaming logic.
+            if (SpeedrunRoulette.pendingGiveUp || SpeedrunRoulette.pendingNewRun) {
+                LOGGER.info("ServerStopping: Preparing for New Game (Clear Objectives)");
+                SpeedrunState.prepareForNewGame();
+            } else if (SpeedrunRoulette.pendingReplay) {
+                LOGGER.info("ServerStopping: Preparing for Retry (Keep Objectives)");
+                SpeedrunState.prepareForRetry();
+            }
+            
+            // Reset Flags
+            SpeedrunRoulette.pendingGiveUp = false;
+            SpeedrunRoulette.pendingNewRun = false;
+            SpeedrunRoulette.pendingReplay = false;
+            SpeedrunRoulette.pendingVictoryTime = null;
+            SpeedrunRoulette.pendingVictoryObjectiveName = null;
+            SpeedrunRoulette.pendingLevelNewName = null;
         }
 
 
