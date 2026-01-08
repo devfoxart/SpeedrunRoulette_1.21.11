@@ -59,9 +59,7 @@ public class ReminderScreen extends Screen {
             }
 
             boolean isSingleplayer = this.minecraft.isLocalServer();
-             if (this.minecraft.level != null) {
-                this.minecraft.level.disconnect(Component.translatable("menu.disconnect"));
-            }
+            // Do not call level.disconnect() manually, let minecraft.disconnect() handle it
             
             if (isSingleplayer) {
                 this.minecraft.disconnect(new net.minecraft.client.gui.screens.TitleScreen(), false);

@@ -33,13 +33,7 @@ public class VictoryScreen extends Screen {
             // Wait, compiler says disconnect(Screen) expects 2 args: Screen, boolean.
             // So:
             
-            if (this.minecraft.level != null) {
-                // disconnect() in ClientLevel needs a Component for reason?
-                // Or maybe we don't need to call level.disconnect() manually if we call minecraft.disconnect()?
-                // PauseScreen usually calls level.disconnect() first.
-                // Let's try passing a component.
-                this.minecraft.level.disconnect(Component.translatable("menu.disconnect"));
-            }
+            // Do not call level.disconnect() manually, let minecraft.disconnect() handle it
             
             if (isSingleplayer) {
                 // For singleplayer, passing a screen to disconnect() shows it during saving.
@@ -58,9 +52,7 @@ public class VictoryScreen extends Screen {
             SpeedrunState.prepareForNewGame();
             
             boolean isSingleplayer = this.minecraft.isLocalServer();
-             if (this.minecraft.level != null) {
-                this.minecraft.level.disconnect(Component.translatable("menu.disconnect"));
-            }
+             // Do not call level.disconnect() manually, let minecraft.disconnect() handle it
             
             if (isSingleplayer) {
                 this.minecraft.disconnect(new net.minecraft.client.gui.screens.TitleScreen(), false);
@@ -72,9 +64,7 @@ public class VictoryScreen extends Screen {
         // Menu Principal
         this.addRenderableWidget(Button.builder(Component.translatable("gui.examplemod.main_menu"), (btn) -> {
             boolean isSingleplayer = this.minecraft.isLocalServer();
-             if (this.minecraft.level != null) {
-                this.minecraft.level.disconnect(Component.translatable("menu.disconnect"));
-            }
+             // Do not call level.disconnect() manually, let minecraft.disconnect() handle it
             
             if (isSingleplayer) {
                 this.minecraft.disconnect(new net.minecraft.client.gui.screens.TitleScreen(), false);
