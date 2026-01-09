@@ -30,7 +30,7 @@ public class ReminderScreen extends Screen {
             SpeedrunRoulette.pendingGiveUp = true;
             
             // Save Run Info (Failure)
-            // SpeedrunState.saveRunInfo(false);
+            SpeedrunState.saveRunInfo(false);
             
             boolean isSingleplayer = this.minecraft.isLocalServer();
             

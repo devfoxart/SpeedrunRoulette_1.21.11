@@ -22,7 +22,7 @@ public class VictoryScreen extends Screen {
             SpeedrunRoulette.pendingReplay = true;
             
             // Save Run Info (Success)
-            // SpeedrunState.saveRunInfo(true);
+            SpeedrunState.saveRunInfo(true);
 
             // Standard "Save and Quit" logic
             boolean isSingleplayer = this.minecraft.isLocalServer();
@@ -39,7 +39,7 @@ public class VictoryScreen extends Screen {
             SpeedrunRoulette.pendingNewRun = true;
             
             // Save Run Info (Success)
-            // SpeedrunState.saveRunInfo(true);
+            SpeedrunState.saveRunInfo(true);
             
             boolean isSingleplayer = this.minecraft.isLocalServer();
             
@@ -53,7 +53,7 @@ public class VictoryScreen extends Screen {
         // Menu Principal
         this.addRenderableWidget(Button.builder(Component.translatable("gui.examplemod.main_menu"), (btn) -> {
             // Save Run Info (Success)
-            // SpeedrunState.saveRunInfo(true);
+            SpeedrunState.saveRunInfo(true);
             
             boolean isSingleplayer = this.minecraft.isLocalServer();
             
