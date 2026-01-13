@@ -101,5 +101,10 @@
   "gui.examplemod.split.nether_fossil": "Fósil del Nether",
   "gui.examplemod.split.trial_chamber": "Cámara de Pruebas",
   
-  "gui.examplemod.level_rename.failure": " Fallido"
+  "gui.examplemod.level_rename.failure": " Fallido",
+  
+  "gui.examplemod.tooltip.speedrun_won": "¡Speedrun Ganado!",
+  "gui.examplemod.tooltip.speedrun_failed": "¡Speedrun Fallido!",
+  "gui.examplemod.tooltip.time": "Tiempo: %s",
+  "gui.examplemod.tooltip.objectives": "Objetivos:"
 }

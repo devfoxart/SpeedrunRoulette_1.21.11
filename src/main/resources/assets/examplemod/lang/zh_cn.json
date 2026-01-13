@@ -101,5 +101,10 @@
   "gui.examplemod.split.nether_fossil": "下界化石",
   "gui.examplemod.split.trial_chamber": "试炼密室",
   
-  "gui.examplemod.level_rename.failure": " 失败"
+  "gui.examplemod.level_rename.failure": " 失败",
+  
+  "gui.examplemod.tooltip.speedrun_won": "速通胜利!",
+  "gui.examplemod.tooltip.speedrun_failed": "速通失败!",
+  "gui.examplemod.tooltip.time": "时间: %s",
+  "gui.examplemod.tooltip.objectives": "目标:"
 }

@@ -101,5 +101,10 @@
   "gui.examplemod.split.nether_fossil": "Останки в Незере",
   "gui.examplemod.split.trial_chamber": "Дворец испытаний",
   
-  "gui.examplemod.level_rename.failure": " Провалено"
+  "gui.examplemod.level_rename.failure": " Провалено",
+  
+  "gui.examplemod.tooltip.speedrun_won": "Спидран Выигран!",
+  "gui.examplemod.tooltip.speedrun_failed": "Спидран Провален!",
+  "gui.examplemod.tooltip.time": "Время: %s",
+  "gui.examplemod.tooltip.objectives": "Цели:"
 }

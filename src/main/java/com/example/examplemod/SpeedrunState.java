@@ -280,6 +280,15 @@ public class SpeedrunState {
              boolean isDead = mc.player.isDeadOrDying();
              if (isDead && !wasDead) {
                  deathCount++;
+                 if (timerRunning && mc.getSingleplayerServer() != null) {
+                     mc.getSingleplayerServer().execute(() -> {
+                         SpeedrunWorldData data = SpeedrunWorldData.get(mc.getSingleplayerServer());
+                         if (!data.isWon()) {
+                             data.setLost(true);
+                             data.setDirty();
+                         }
+                     });
+                 }
              }
              wasDead = isDead;
              
@@ -390,6 +399,18 @@ public class SpeedrunState {
                          } else {
                             SpeedrunRoulette.pendingVictoryObjectiveName = objectives.get(0).getDisplayName().getString();
                          }
+                     }
+                     
+                     // Save Victory State
+                     if (mc.getSingleplayerServer() != null) {
+                         final long victoryTime = finalElapsedNanos;
+                         mc.getSingleplayerServer().execute(() -> {
+                             SpeedrunWorldData data = SpeedrunWorldData.get(mc.getSingleplayerServer());
+                             data.setWon(true);
+                             data.setLost(false);
+                             data.setTotalTime(victoryTime);
+                             data.setDirty();
+                         });
                      }
                      
                      mc.getSoundManager().play(net.minecraft.client.resources.sounds.SimpleSoundInstance.forUI(net.minecraft.sounds.SoundEvents.UI_TOAST_CHALLENGE_COMPLETE, 1.0F));
@@ -512,9 +533,9 @@ public class SpeedrunState {
                 net.minecraft.resources.Identifier dirtId = net.minecraft.resources.Identifier.tryParse("minecraft:dirt");
                 net.minecraft.resources.Identifier emeraldId = net.minecraft.resources.Identifier.tryParse("minecraft:emerald");
                 
-                net.minecraft.world.item.Item iron = net.minecraft.core.registries.BuiltInRegistries.ITEM.get(ironId).map(holder -> holder.value()).orElse(null);
-                net.minecraft.world.item.Item dirt = net.minecraft.core.registries.BuiltInRegistries.ITEM.get(dirtId).map(holder -> holder.value()).orElse(null);
-                net.minecraft.world.item.Item emerald = net.minecraft.core.registries.BuiltInRegistries.ITEM.get(emeraldId).map(holder -> holder.value()).orElse(null);
+                net.minecraft.world.item.Item iron = net.minecraft.core.registries.BuiltInRegistries.ITEM.get(ironId).map(h -> h.value()).orElse(net.minecraft.world.item.Items.AIR);
+                net.minecraft.world.item.Item dirt = net.minecraft.core.registries.BuiltInRegistries.ITEM.get(dirtId).map(h -> h.value()).orElse(net.minecraft.world.item.Items.AIR);
+                net.minecraft.world.item.Item emerald = net.minecraft.core.registries.BuiltInRegistries.ITEM.get(emeraldId).map(h -> h.value()).orElse(net.minecraft.world.item.Items.AIR);
                 
                 // If registry lookup fails (shouldn't if game is running), try static fields as fallback
                 if (iron == net.minecraft.world.item.Items.AIR) iron = net.minecraft.world.item.Items.IRON_INGOT;
@@ -897,9 +918,9 @@ public class SpeedrunState {
                 // Get ID from holder
                 // holder.id() -> ResourceLocation
                 java.lang.reflect.Method idMethod = holder.getClass().getMethod("id");
-                net.minecraft.resources.Identifier advId = (net.minecraft.resources.Identifier) idMethod.invoke(holder);
+                Object advId = idMethod.invoke(holder);
                 
-                if (advId.equals(loc)) {
+                if (advId.toString().equals(loc.toString())) {
                     // Check if done
                     // prog.isDone()
                     java.lang.reflect.Method isDoneMethod = prog.getClass().getMethod("isDone");

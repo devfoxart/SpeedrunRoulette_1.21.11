@@ -34,6 +34,8 @@ public class PoolCustomizationScreen extends Screen {
     // Mouse tracking for nested widgets
     public int currentMouseX;
     public int currentMouseY;
+    private boolean wasMouseDown = false;
+    private List<Component> pendingTooltip = null;
     
     // Filters
     private Objective.Type currentTypeFilter = null; // null = ALL
@@ -51,11 +53,6 @@ public class PoolCustomizationScreen extends Screen {
         this.enableAdvancements = enableAdvancements;
         this.currentBlacklist = new ArrayList<>(Config.BLACKLIST.get());
         this.allObjectives = ObjectivePoolHelper.getAllCandidates(true, enableItems, enableBlocks, enableAdvancements);
-        
-        System.out.println("DEBUG: GuiEventListener methods:");
-        for (java.lang.reflect.Method m : GuiEventListener.class.getMethods()) {
-             System.out.println(m.getName() + " " + java.util.Arrays.toString(m.getParameterTypes()));
-        }
     }
 
     @Override
@@ -109,65 +106,54 @@ public class PoolCustomizationScreen extends Screen {
     }
 
     @Override
-    public boolean mouseClicked(MouseButtonEvent event, boolean handled) {
-        double mouseX = event.x();
-        double mouseY = event.y();
-        int button = event.button();
-
-        if (this.saveButton != null && this.saveButton.isMouseOver(mouseX, mouseY) && this.saveButton.active && this.saveButton.visible) {
-             this.saveButton.mouseClicked(event, handled);
-             return true; // Always consume click if over button, to prevent fall-through
-        }
-        // Only handle clicks on the list if the mouse is actually over the list area (and not covered by other widgets)
-        // AND not over the save button area (redundant check but safe)
-        if (this.objectiveList != null && this.objectiveList.isMouseOver(mouseX, mouseY)) {
-             if (this.handleMouseClick(mouseX, mouseY, button)) {
-                 return true;
-             }
-        }
-        
-        return super.mouseClicked(event, handled);
-    }
-
-    @Override
     public void render(GuiGraphics guiGraphics, int mouseX, int mouseY, float partialTick) {
+        this.pendingTooltip = null;
         this.currentMouseX = mouseX;
         this.currentMouseY = mouseY;
+        
         super.render(guiGraphics, mouseX, mouseY, partialTick); // Handles background and children
+        
         guiGraphics.drawCenteredString(this.font, this.title, this.width / 2, 8, 0xFFFFFFFF);
         
         if (this.objectiveList.children().isEmpty()) {
             guiGraphics.drawCenteredString(this.font, Component.translatable("gui.examplemod.pool_config.no_objectives"), this.width / 2, this.height / 2, 0xFFAAAAAA);
         }
+        
+        if (this.pendingTooltip != null) {
+            this.renderCustomTooltip(guiGraphics, this.pendingTooltip, mouseX, mouseY);
+            this.pendingTooltip = null;
+        }
     }
 
-    public boolean handleMouseClick(double mouseX, double mouseY, int button) {
-        // FAILSAFE: If over save button, ignore list clicks completely
-        if (this.saveButton != null && this.saveButton.isMouseOver(mouseX, mouseY)) return false;
+    // Removed handleMyClick as we use proper event propagation now
 
-        // Manual hit test for widgets in the list
-        if (this.objectiveList != null) {
-            // Ensure click is within the list's visible bounds
-            if (mouseY < this.objectiveList.getY() || mouseY > this.objectiveList.getY() + this.objectiveList.getHeight()) {
-                return false;
-            }
-
-            for (ObjectiveList.ObjectiveRowEntry entry : this.objectiveList.children()) {
-                for (ObjectiveWidget widget : entry.widgets) {
-                    if (widget.isMouseOver(mouseX, mouseY)) {
-                        widget.playDownSound(Minecraft.getInstance().getSoundManager());
-                        String id = widget.objective.getId();
-                        if (currentBlacklist.contains(id)) {
-                            currentBlacklist.remove(id);
-                        } else {
-                            currentBlacklist.add(id);
-                        }
-                        return true;
-                    }
-                }
-            }
+    private void renderCustomTooltip(GuiGraphics guiGraphics, List<Component> text, int x, int y) {
+        if (text.isEmpty()) return;
+        
+        // guiGraphics.disableScissor();
+        
+        int maxWidth = 0;
+        for (Component c : text) {
+            int w = this.font.width(c);
+            if (w > maxWidth) maxWidth = w;
         }
-        return false;
+        
+        int lineHeight = 10;
+        int totalHeight = text.size() * lineHeight + 6;
+        int totalWidth = maxWidth + 8;
+        
+        int bx = x + 10;
+        int by = y - 5;
+        
+        if (bx + totalWidth > this.width) bx -= (totalWidth + 20);
+        if (by + totalHeight > this.height) by -= totalHeight;
+        
+        guiGraphics.fill(bx, by, bx + totalWidth, by + totalHeight, 0xF0100010);
+        guiGraphics.renderOutline(bx, by, totalWidth, totalHeight, 0x505000FF); 
+        
+        for (int i = 0; i < text.size(); i++) {
+            guiGraphics.drawString(this.font, text.get(i), bx + 4, by + 4 + (i * lineHeight), 0xFFFFFFFF, false);
+        }
     }
 
     @Override
@@ -224,6 +210,7 @@ public class PoolCustomizationScreen extends Screen {
         
         if (this.objectiveList != null) {
             this.objectiveList.updateEntries(filtered);
+            this.objectiveList.setScrollAmount(0);
         }
     }
 
@@ -342,6 +329,16 @@ public class PoolCustomizationScreen extends Screen {
             }
             
             @Override
+            public boolean mouseClicked(MouseButtonEvent event, boolean handled) {
+                for (ObjectiveWidget widget : this.widgets) {
+                    if (widget.isMouseOver(event.x(), event.y())) {
+                        if (widget.mouseClicked(event, handled)) return true;
+                    }
+                }
+                return false;
+            }
+            
+            @Override
             public List<? extends GuiEventListener> children() {
                 return this.widgets;
             }
@@ -364,7 +361,7 @@ public class PoolCustomizationScreen extends Screen {
         @Override
         protected void renderWidget(GuiGraphics guiGraphics, int mouseX, int mouseY, float partialTick) {
             boolean isBlacklisted = currentBlacklist.contains(objective.getId());
-            boolean hovered = this.isHovered();
+            boolean hovered = this.isMouseOver(mouseX, mouseY);
             
             int borderColor = isBlacklisted ? 0xFFFF0000 : 0xFF00FF00;
             int bgColor = isBlacklisted ? 0xAA550000 : 0xAA000000;
@@ -399,13 +396,12 @@ public class PoolCustomizationScreen extends Screen {
 
             // Tooltip (Name + Description)
             if (hovered) {
+                List<Component> tooltip = new ArrayList<>();
+                tooltip.add(name);
                 if (objective.getDescription() != null && !objective.getDescription().getString().isEmpty()) {
-                     this.setTooltip(Tooltip.create(Component.empty().append(name).append(Component.literal("\n")).append(objective.getDescription())));
-                } else {
-                     this.setTooltip(Tooltip.create(name));
+                    tooltip.add(objective.getDescription());
                 }
-            } else {
-                this.setTooltip(null);
+                PoolCustomizationScreen.this.pendingTooltip = tooltip;
             }
             
             // Status Indicator (X if disabled)
@@ -419,8 +415,19 @@ public class PoolCustomizationScreen extends Screen {
             this.defaultButtonNarrationText(narrationElementOutput);
         }
 
-        public boolean mouseClicked(double mouseX, double mouseY, int button) {
-            return false; // Handled by RowEntry
+        // Use the correct signature for NeoForge 1.20.x
+        public boolean mouseClicked(MouseButtonEvent event, boolean handled) {
+            if (this.isHovered()) {
+                this.playDownSound(Minecraft.getInstance().getSoundManager());
+                String id = this.objective.getId();
+                if (currentBlacklist.contains(id)) {
+                    currentBlacklist.remove(id);
+                } else {
+                    currentBlacklist.add(id);
+                }
+                return true;
+            }
+            return false;
         }
     }
 }

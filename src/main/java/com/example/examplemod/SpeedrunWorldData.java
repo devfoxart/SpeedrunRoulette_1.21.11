@@ -17,15 +17,24 @@ import com.mojang.serialization.codecs.RecordCodecBuilder;
 public class SpeedrunWorldData extends SavedData {
 
     public static final Codec<SpeedrunWorldData> CODEC = RecordCodecBuilder.create(instance -> instance.group(
-        Objective.CODEC.listOf().fieldOf("objectives").forGetter(SpeedrunWorldData::getObjectives)
-    ).apply(instance, (objectives) -> {
+        Objective.CODEC.listOf().fieldOf("objectives").forGetter(SpeedrunWorldData::getObjectives),
+        Codec.LONG.optionalFieldOf("totalTime", 0L).forGetter(SpeedrunWorldData::getTotalTime),
+        Codec.BOOL.optionalFieldOf("isWon", false).forGetter(SpeedrunWorldData::isWon),
+        Codec.BOOL.optionalFieldOf("isLost", false).forGetter(SpeedrunWorldData::isLost)
+    ).apply(instance, (objectives, time, won, lost) -> {
         SpeedrunWorldData data = new SpeedrunWorldData();
         data.setObjectives(objectives);
+        data.setTotalTime(time);
+        data.setWon(won);
+        data.setLost(lost);
         return data;
     }));
 
     private static final String DATA_NAME = "speedrun_world_data";
     private final List<Objective> objectives = new ArrayList<>();
+    private long totalTime = 0;
+    private boolean isWon = false;
+    private boolean isLost = false;
 
     public SpeedrunWorldData() {}
 
@@ -60,6 +69,11 @@ public class SpeedrunWorldData extends SavedData {
                 }
             }
         }
+        
+        if (tag.contains("totalTime")) tag.getLong("totalTime").ifPresent(v -> data.totalTime = v);
+        if (tag.contains("isWon")) tag.getBoolean("isWon").ifPresent(v -> data.isWon = v);
+        if (tag.contains("isLost")) tag.getBoolean("isLost").ifPresent(v -> data.isLost = v);
+        
         return data;
     }
 
@@ -70,6 +84,9 @@ public class SpeedrunWorldData extends SavedData {
             list.add(obj.save(provider));
         }
         tag.put("objectives", list);
+        tag.putLong("totalTime", totalTime);
+        tag.putBoolean("isWon", isWon);
+        tag.putBoolean("isLost", isLost);
         return tag;
     }
     
@@ -97,4 +114,13 @@ public class SpeedrunWorldData extends SavedData {
         this.objectives.addAll(objectives);
         setDirty();
     }
+    
+    public long getTotalTime() { return totalTime; }
+    public void setTotalTime(long time) { this.totalTime = time; setDirty(); }
+    
+    public boolean isWon() { return isWon; }
+    public void setWon(boolean won) { this.isWon = won; setDirty(); }
+    
+    public boolean isLost() { return isLost; }
+    public void setLost(boolean lost) { this.isLost = lost; setDirty(); }
 }

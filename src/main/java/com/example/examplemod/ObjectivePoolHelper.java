@@ -38,6 +38,13 @@ import java.util.stream.Collectors;
 public class ObjectivePoolHelper {
     private static final Random RANDOM = new Random();
 
+    private static final java.util.Set<String> EXCLUDED_ROOTS = java.util.Set.of(
+        "minecraft:story/root",
+        "minecraft:nether/root",
+        "minecraft:husbandry/root",
+        "minecraft:end/root"
+    );
+
     public static List<Objective> getRandomObjectives(int count) {
         List<Objective> list = new ArrayList<>();
         List<Objective> candidates = getAllCandidates(false);
@@ -76,7 +83,6 @@ public class ObjectivePoolHelper {
 
         // 1. Items & Blocks
         if (enableItems || enableBlocks) {
-            System.out.println("ObjectivePoolHelper: Scanning items/blocks...");
             int found = 0;
             for (Item item : BuiltInRegistries.ITEM) {
                 if (!isValidItem(item)) continue;
@@ -128,10 +134,10 @@ public class ObjectivePoolHelper {
                          found += 3;
                     }
                 } catch (Exception e) {
-                    System.err.println("Error adding potions: " + e.getMessage());
+                    // System.err.println("Error adding potions: " + e.getMessage());
                 }
             }
-            System.out.println("ObjectivePoolHelper: Found " + found + " items/blocks.");
+            // System.out.println("ObjectivePoolHelper: Found " + found + " items/blocks.");
         }
 
         // 2. Advancements (Client Only or Server fallback)
@@ -152,8 +158,10 @@ public class ObjectivePoolHelper {
                     if (holder.value().display().isPresent()) {
                          net.minecraft.advancements.DisplayInfo display = holder.value().display().get();
                          
-                         String id = holder.id().toString();
+                        String id = holder.id().toString();
                          if (id.startsWith("minecraft:recipes/")) continue;
+                         if (id.equals("minecraft:adventure/root")) continue;
+                         if (id.equals("minecraft:end/root")) continue;
                          if (!filter.isEmpty() && !id.contains(filter)) continue;
                          if (!includeBlacklisted && blacklist.contains(id)) continue;
                          
@@ -167,7 +175,7 @@ public class ObjectivePoolHelper {
                          ));
                     }
                 }
-                System.out.println("ObjectivePoolHelper: Found " + candidates.stream().filter(o -> o.getType() == Objective.Type.ADVANCEMENT).count() + " advancements.");
+                // System.out.println("ObjectivePoolHelper: Found " + candidates.stream().filter(o -> o.getType() == Objective.Type.ADVANCEMENT).count() + " advancements.");
             } catch (Exception e) {
                 // Ignore advancement loading errors
                 e.printStackTrace();
@@ -179,7 +187,7 @@ public class ObjectivePoolHelper {
             // Fallback: Load from Vanilla Data (Main Menu / No World / Or if Client returned nothing useful)
             if (!foundAdvancements) {
                 try {
-                    System.out.println("ObjectivePoolHelper: No advancements found from Client, scanning Vanilla Data...");
+                    // System.out.println("ObjectivePoolHelper: No advancements found from Client, scanning Vanilla Data...");
                     PackResources vanilla = Minecraft.getInstance().getVanillaPackResources();
                     
                     vanilla.listResources(PackType.SERVER_DATA, "minecraft", "advancements", (location, streamSupplier) -> {
@@ -194,6 +202,8 @@ public class ObjectivePoolHelper {
                         String idStr = namespace + ":" + path;
                         
                         if (idStr.startsWith("minecraft:recipes/")) return;
+                        if (idStr.equals("minecraft:adventure/root")) return;
+                        if (idStr.equals("minecraft:end/root")) return;
                         if (!filter.isEmpty() && !idStr.contains(filter)) return;
                         if (!includeBlacklisted && blacklist.contains(idStr)) return;
 
@@ -260,133 +270,138 @@ public class ObjectivePoolHelper {
                             // Ignore malformed files
                         }
                     });
-                    System.out.println("ObjectivePoolHelper: Found " + candidates.stream().filter(o -> o.getType() == Objective.Type.ADVANCEMENT).count() + " advancements via Vanilla Data.");
+                    // System.out.println("ObjectivePoolHelper: Found " + candidates.stream().filter(o -> o.getType() == Objective.Type.ADVANCEMENT).count() + " advancements via Vanilla Data.");
                 } catch (Exception e) {
                     e.printStackTrace();
                 }
             }
                 
             // Final Fallback: Hardcoded List (to ensure all advancements are present even if dynamic loading fails)
-            populateHardcodedAdvancements(candidates, blacklist, filter);
+            populateHardcodedAdvancements(candidates, blacklist, filter, includeBlacklisted);
         }
         
         return candidates;
     }
     
-    private static void populateHardcodedAdvancements(List<Objective> candidates, List<? extends String> blacklist, String filter) {
+    private static void populateHardcodedAdvancements(List<Objective> candidates, List<? extends String> blacklist, String filter, boolean includeBlacklisted) {
+        System.out.println("Populating hardcoded advancements...");
+        int startSize = candidates.size();
+        
         // Helper to check if already exists
         java.util.Set<String> existingIds = candidates.stream()
             .map(Objective::getId)
             .collect(Collectors.toSet());
 
-        addHardcoded(candidates, existingIds, blacklist, filter, "minecraft:story/root", "Minecraft", Items.CRAFTING_TABLE, "The heart and story of the game");
-        addHardcoded(candidates, existingIds, blacklist, filter, "minecraft:story/mine_stone", "Stone Age", Items.WOODEN_PICKAXE, "Mine stone with your new pickaxe");
-        addHardcoded(candidates, existingIds, blacklist, filter, "minecraft:story/upgrade_tools", "Getting an Upgrade", Items.STONE_PICKAXE, "Construct a better pickaxe");
-        addHardcoded(candidates, existingIds, blacklist, filter, "minecraft:story/smelt_iron", "Acquire Hardware", Items.IRON_INGOT, "Smelt an iron ingot");
-        addHardcoded(candidates, existingIds, blacklist, filter, "minecraft:story/obtain_armor", "Suit Up", Items.IRON_CHESTPLATE, "Protect yourself with a piece of iron armor");
-        addHardcoded(candidates, existingIds, blacklist, filter, "minecraft:story/lava_bucket", "Hot Stuff", Items.LAVA_BUCKET, "Fill a bucket with lava");
-        addHardcoded(candidates, existingIds, blacklist, filter, "minecraft:story/iron_tools", "Isn't It Iron Pick", Items.IRON_PICKAXE, "Upgrade your pickaxe");
-        addHardcoded(candidates, existingIds, blacklist, filter, "minecraft:story/deflect_arrow", "Not Today, Thank You", Items.SHIELD, "Deflect an arrow with a shield");
-        addHardcoded(candidates, existingIds, blacklist, filter, "minecraft:story/form_obsidian", "Ice Bucket Challenge", Items.OBSIDIAN, "Obtain a block of Obsidian");
-        addHardcoded(candidates, existingIds, blacklist, filter, "minecraft:story/mine_diamond", "Diamonds!", Items.DIAMOND, "Acquire diamonds");
-        addHardcoded(candidates, existingIds, blacklist, filter, "minecraft:story/enter_the_nether", "We Need to Go Deeper", Items.FLINT_AND_STEEL, "Build, light and enter a Nether Portal");
-        addHardcoded(candidates, existingIds, blacklist, filter, "minecraft:story/shiny_gear", "Cover Me with Diamonds", Items.DIAMOND_CHESTPLATE, "Diamond armor saves lives");
-        addHardcoded(candidates, existingIds, blacklist, filter, "minecraft:story/enchant_item", "Enchanter", Items.ENCHANTING_TABLE, "Enchant an item at an Enchanting Table");
-        addHardcoded(candidates, existingIds, blacklist, filter, "minecraft:story/cure_zombie_villager", "Zombie Doctor", Items.GOLDEN_APPLE, "Weaken and then cure a Zombie Villager");
-        addHardcoded(candidates, existingIds, blacklist, filter, "minecraft:story/follow_ender_eye", "Eye Spy", Items.ENDER_EYE, "Follow an Eye of Ender");
-        addHardcoded(candidates, existingIds, blacklist, filter, "minecraft:story/enter_the_end", "The End?", Items.END_STONE, "Enter the End Dimension");
+        addHardcoded(candidates, existingIds, blacklist, filter, includeBlacklisted, "minecraft:story/root", "Minecraft", Items.CRAFTING_TABLE, "The heart and story of the game");
+        addHardcoded(candidates, existingIds, blacklist, filter, includeBlacklisted, "minecraft:story/mine_stone", "Stone Age", Items.WOODEN_PICKAXE, "Mine stone with your new pickaxe");
+        addHardcoded(candidates, existingIds, blacklist, filter, includeBlacklisted, "minecraft:story/upgrade_tools", "Getting an Upgrade", Items.STONE_PICKAXE, "Construct a better pickaxe");
+        addHardcoded(candidates, existingIds, blacklist, filter, includeBlacklisted, "minecraft:story/smelt_iron", "Acquire Hardware", Items.IRON_INGOT, "Smelt an iron ingot");
+        addHardcoded(candidates, existingIds, blacklist, filter, includeBlacklisted, "minecraft:story/obtain_armor", "Suit Up", Items.IRON_CHESTPLATE, "Protect yourself with a piece of iron armor");
+        addHardcoded(candidates, existingIds, blacklist, filter, includeBlacklisted, "minecraft:story/lava_bucket", "Hot Stuff", Items.LAVA_BUCKET, "Fill a bucket with lava");
+        addHardcoded(candidates, existingIds, blacklist, filter, includeBlacklisted, "minecraft:story/iron_tools", "Isn't It Iron Pick", Items.IRON_PICKAXE, "Upgrade your pickaxe");
+        addHardcoded(candidates, existingIds, blacklist, filter, includeBlacklisted, "minecraft:story/deflect_arrow", "Not Today, Thank You", Items.SHIELD, "Deflect an arrow with a shield");
+        addHardcoded(candidates, existingIds, blacklist, filter, includeBlacklisted, "minecraft:story/form_obsidian", "Ice Bucket Challenge", Items.OBSIDIAN, "Obtain a block of Obsidian");
+        addHardcoded(candidates, existingIds, blacklist, filter, includeBlacklisted, "minecraft:story/mine_diamond", "Diamonds!", Items.DIAMOND, "Acquire diamonds");
+        addHardcoded(candidates, existingIds, blacklist, filter, includeBlacklisted, "minecraft:story/enter_the_nether", "We Need to Go Deeper", Items.FLINT_AND_STEEL, "Build, light and enter a Nether Portal");
+        addHardcoded(candidates, existingIds, blacklist, filter, includeBlacklisted, "minecraft:story/shiny_gear", "Cover Me with Diamonds", Items.DIAMOND_CHESTPLATE, "Diamond armor saves lives");
+        addHardcoded(candidates, existingIds, blacklist, filter, includeBlacklisted, "minecraft:story/enchant_item", "Enchanter", Items.ENCHANTING_TABLE, "Enchant an item at an Enchanting Table");
+        addHardcoded(candidates, existingIds, blacklist, filter, includeBlacklisted, "minecraft:story/cure_zombie_villager", "Zombie Doctor", Items.GOLDEN_APPLE, "Weaken and then cure a Zombie Villager");
+        addHardcoded(candidates, existingIds, blacklist, filter, includeBlacklisted, "minecraft:story/follow_ender_eye", "Eye Spy", Items.ENDER_EYE, "Follow an Eye of Ender");
+        addHardcoded(candidates, existingIds, blacklist, filter, includeBlacklisted, "minecraft:story/enter_the_end", "The End?", Items.END_STONE, "Enter the End Dimension");
 
-        addHardcoded(candidates, existingIds, blacklist, filter, "minecraft:nether/root", "Nether", Items.RED_NETHER_BRICKS, "Bring summer clothes");
-        addHardcoded(candidates, existingIds, blacklist, filter, "minecraft:nether/return_to_sender", "Return to Sender", Items.GHAST_TEAR, "Destroy a Ghast with a fireball");
-        addHardcoded(candidates, existingIds, blacklist, filter, "minecraft:nether/find_bastion", "Those Were the Days", Items.POLISHED_BLACKSTONE_BRICKS, "Enter a Bastion Remnant");
-        addHardcoded(candidates, existingIds, blacklist, filter, "minecraft:nether/obtain_ancient_debris", "Hidden in the Depths", Items.ANCIENT_DEBRIS, "Obtain Ancient Debris");
-        addHardcoded(candidates, existingIds, blacklist, filter, "minecraft:nether/fast_travel", "Subspace Bubble", Items.MAP, "Use the Nether to travel 7 km in the Overworld");
-        addHardcoded(candidates, existingIds, blacklist, filter, "minecraft:nether/find_fortress", "A Terrible Fortress", Items.NETHER_BRICKS, "Break your way into a Nether Fortress");
-        addHardcoded(candidates, existingIds, blacklist, filter, "minecraft:nether/obtain_crying_obsidian", "Who is Cutting Onions?", Items.CRYING_OBSIDIAN, "Obtain Crying Obsidian");
-        addHardcoded(candidates, existingIds, blacklist, filter, "minecraft:nether/distract_piglin", "Oh Shiny", Items.GOLD_INGOT, "Distract Piglins with Gold");
-        addHardcoded(candidates, existingIds, blacklist, filter, "minecraft:nether/ride_strider", "This Boat Has Legs", Items.WARPED_FUNGUS_ON_A_STICK, "Ride a Strider with a Warped Fungus on a Stick");
-        addHardcoded(candidates, existingIds, blacklist, filter, "minecraft:nether/uneasy_alliance", "Uneasy Alliance", Items.GHAST_TEAR, "Rescue a Ghast from the Nether, bring it safely home to the Overworld... and then kill it");
-        addHardcoded(candidates, existingIds, blacklist, filter, "minecraft:nether/loot_bastion", "War Pigs", Items.CHEST, "Loot a chest in a Bastion Remnant");
-        addHardcoded(candidates, existingIds, blacklist, filter, "minecraft:nether/use_lodestone", "Country Lode, Take Me Home", Items.LODESTONE, "Use a Compass on a Lodestone");
-        addHardcoded(candidates, existingIds, blacklist, filter, "minecraft:nether/netherite_armor", "Cover Me in Debris", Items.NETHERITE_CHESTPLATE, "Get a full suit of Netherite armor");
-        addHardcoded(candidates, existingIds, blacklist, filter, "minecraft:nether/get_wither_skull", "Spooky Scary Skeleton", Items.WITHER_SKELETON_SKULL, "Obtain a Wither Skeleton Skull");
-        addHardcoded(candidates, existingIds, blacklist, filter, "minecraft:nether/obtain_blaze_rod", "Into Fire", Items.BLAZE_ROD, "Relieve a Blaze of its rod");
-        addHardcoded(candidates, existingIds, blacklist, filter, "minecraft:nether/charge_respawn_anchor", "Not Quite \"Nine\" Lives", Items.RESPAWN_ANCHOR, "Charge a Respawn Anchor to the maximum");
-        addHardcoded(candidates, existingIds, blacklist, filter, "minecraft:nether/explore_nether", "Hot Tourist Destinations", Items.NETHERITE_BOOTS, "Explore all Nether biomes");
-        addHardcoded(candidates, existingIds, blacklist, filter, "minecraft:nether/summon_wither", "Withering Heights", Items.NETHER_STAR, "Summon the Wither");
-        addHardcoded(candidates, existingIds, blacklist, filter, "minecraft:nether/brew_potion", "Local Brewery", Items.POTION, "Brew a Potion");
-        addHardcoded(candidates, existingIds, blacklist, filter, "minecraft:nether/create_beacon", "Bring Home the Beacon", Items.BEACON, "Construct and place a Beacon");
-        addHardcoded(candidates, existingIds, blacklist, filter, "minecraft:nether/all_potions", "A Furious Cocktail", Items.POTION, "Have every potion effect applied at the same time");
-        addHardcoded(candidates, existingIds, blacklist, filter, "minecraft:nether/create_full_beacon", "Beaconator", Items.BEACON, "Bring a beacon to full power");
-        addHardcoded(candidates, existingIds, blacklist, filter, "minecraft:nether/all_effects", "How Did We Get Here?", Items.MILK_BUCKET, "Have every effect applied at the same time");
+        addHardcoded(candidates, existingIds, blacklist, filter, includeBlacklisted, "minecraft:nether/root", "Nether", Items.RED_NETHER_BRICKS, "Bring summer clothes");
+        addHardcoded(candidates, existingIds, blacklist, filter, includeBlacklisted, "minecraft:nether/return_to_sender", "Return to Sender", Items.GHAST_TEAR, "Destroy a Ghast with a fireball");
+        addHardcoded(candidates, existingIds, blacklist, filter, includeBlacklisted, "minecraft:nether/find_bastion", "Those Were the Days", Items.POLISHED_BLACKSTONE_BRICKS, "Enter a Bastion Remnant");
+        addHardcoded(candidates, existingIds, blacklist, filter, includeBlacklisted, "minecraft:nether/obtain_ancient_debris", "Hidden in the Depths", Items.ANCIENT_DEBRIS, "Obtain Ancient Debris");
+        addHardcoded(candidates, existingIds, blacklist, filter, includeBlacklisted, "minecraft:nether/fast_travel", "Subspace Bubble", Items.MAP, "Use the Nether to travel 7 km in the Overworld");
+        addHardcoded(candidates, existingIds, blacklist, filter, includeBlacklisted, "minecraft:nether/find_fortress", "A Terrible Fortress", Items.NETHER_BRICKS, "Break your way into a Nether Fortress");
+        addHardcoded(candidates, existingIds, blacklist, filter, includeBlacklisted, "minecraft:nether/obtain_crying_obsidian", "Who is Cutting Onions?", Items.CRYING_OBSIDIAN, "Obtain Crying Obsidian");
+        addHardcoded(candidates, existingIds, blacklist, filter, includeBlacklisted, "minecraft:nether/distract_piglin", "Oh Shiny", Items.GOLD_INGOT, "Distract Piglins with Gold");
+        addHardcoded(candidates, existingIds, blacklist, filter, includeBlacklisted, "minecraft:nether/ride_strider", "This Boat Has Legs", Items.WARPED_FUNGUS_ON_A_STICK, "Ride a Strider with a Warped Fungus on a Stick");
+        addHardcoded(candidates, existingIds, blacklist, filter, includeBlacklisted, "minecraft:nether/uneasy_alliance", "Uneasy Alliance", Items.GHAST_TEAR, "Rescue a Ghast from the Nether, bring it safely home to the Overworld... and then kill it");
+        addHardcoded(candidates, existingIds, blacklist, filter, includeBlacklisted, "minecraft:nether/loot_bastion", "War Pigs", Items.CHEST, "Loot a chest in a Bastion Remnant");
+        addHardcoded(candidates, existingIds, blacklist, filter, includeBlacklisted, "minecraft:nether/use_lodestone", "Country Lode, Take Me Home", Items.LODESTONE, "Use a Compass on a Lodestone");
+        addHardcoded(candidates, existingIds, blacklist, filter, includeBlacklisted, "minecraft:nether/netherite_armor", "Cover Me in Debris", Items.NETHERITE_CHESTPLATE, "Get a full suit of Netherite armor");
+        addHardcoded(candidates, existingIds, blacklist, filter, includeBlacklisted, "minecraft:nether/get_wither_skull", "Spooky Scary Skeleton", Items.WITHER_SKELETON_SKULL, "Obtain a Wither Skeleton Skull");
+        addHardcoded(candidates, existingIds, blacklist, filter, includeBlacklisted, "minecraft:nether/obtain_blaze_rod", "Into Fire", Items.BLAZE_ROD, "Relieve a Blaze of its rod");
+        addHardcoded(candidates, existingIds, blacklist, filter, includeBlacklisted, "minecraft:nether/charge_respawn_anchor", "Not Quite \"Nine\" Lives", Items.RESPAWN_ANCHOR, "Charge a Respawn Anchor to the maximum");
+        addHardcoded(candidates, existingIds, blacklist, filter, includeBlacklisted, "minecraft:nether/explore_nether", "Hot Tourist Destinations", Items.NETHERITE_BOOTS, "Explore all Nether biomes");
+        addHardcoded(candidates, existingIds, blacklist, filter, includeBlacklisted, "minecraft:nether/summon_wither", "Withering Heights", Items.NETHER_STAR, "Summon the Wither");
+        addHardcoded(candidates, existingIds, blacklist, filter, includeBlacklisted, "minecraft:nether/brew_potion", "Local Brewery", Items.POTION, "Brew a Potion");
+        addHardcoded(candidates, existingIds, blacklist, filter, includeBlacklisted, "minecraft:nether/create_beacon", "Bring Home the Beacon", Items.BEACON, "Construct and place a Beacon");
+        addHardcoded(candidates, existingIds, blacklist, filter, includeBlacklisted, "minecraft:nether/all_potions", "A Furious Cocktail", Items.POTION, "Have every potion effect applied at the same time");
+        addHardcoded(candidates, existingIds, blacklist, filter, includeBlacklisted, "minecraft:nether/create_full_beacon", "Beaconator", Items.BEACON, "Bring a beacon to full power");
+        addHardcoded(candidates, existingIds, blacklist, filter, includeBlacklisted, "minecraft:nether/all_effects", "How Did We Get Here?", Items.MILK_BUCKET, "Have every effect applied at the same time");
 
-        addHardcoded(candidates, existingIds, blacklist, filter, "minecraft:end/root", "The End", Items.END_STONE, "Or the beginning?");
-        addHardcoded(candidates, existingIds, blacklist, filter, "minecraft:end/kill_dragon", "Free the End", Items.DRAGON_HEAD, "Good luck");
-        addHardcoded(candidates, existingIds, blacklist, filter, "minecraft:end/dragon_egg", "The Next Generation", Items.DRAGON_EGG, "Hold the Dragon Egg");
-        addHardcoded(candidates, existingIds, blacklist, filter, "minecraft:end/enter_end_gateway", "Remote Getaway", Items.ENDER_PEARL, "Escape the island");
-        addHardcoded(candidates, existingIds, blacklist, filter, "minecraft:end/respawn_dragon", "The End... Again...", Items.END_CRYSTAL, "Respawn the Ender Dragon");
-        addHardcoded(candidates, existingIds, blacklist, filter, "minecraft:end/dragon_breath", "You Need a Mint", Items.DRAGON_BREATH, "Collect dragon's breath in a glass bottle");
-        addHardcoded(candidates, existingIds, blacklist, filter, "minecraft:end/find_end_city", "The City at the End of the Game", Items.PURPUR_BLOCK, "Go on in, what could happen?");
-        addHardcoded(candidates, existingIds, blacklist, filter, "minecraft:end/elytra", "Sky's the Limit", Items.ELYTRA, "Find Elytra");
-        addHardcoded(candidates, existingIds, blacklist, filter, "minecraft:end/levitate", "Great View From Up Here", Items.SHULKER_SHELL, "Levitate up 50 blocks from the attacks of a Shulker");
+        addHardcoded(candidates, existingIds, blacklist, filter, includeBlacklisted, "minecraft:end/root", "The End", Items.END_STONE, "Or the beginning?");
+        addHardcoded(candidates, existingIds, blacklist, filter, includeBlacklisted, "minecraft:end/kill_dragon", "Free the End", Items.DRAGON_HEAD, "Good luck");
+        addHardcoded(candidates, existingIds, blacklist, filter, includeBlacklisted, "minecraft:end/dragon_egg", "The Next Generation", Items.DRAGON_EGG, "Hold the Dragon Egg");
+        addHardcoded(candidates, existingIds, blacklist, filter, includeBlacklisted, "minecraft:end/enter_end_gateway", "Remote Getaway", Items.ENDER_PEARL, "Escape the island");
+        addHardcoded(candidates, existingIds, blacklist, filter, includeBlacklisted, "minecraft:end/respawn_dragon", "The End... Again...", Items.END_CRYSTAL, "Respawn the Ender Dragon");
+        addHardcoded(candidates, existingIds, blacklist, filter, includeBlacklisted, "minecraft:end/dragon_breath", "You Need a Mint", Items.DRAGON_BREATH, "Collect dragon's breath in a glass bottle");
+        addHardcoded(candidates, existingIds, blacklist, filter, includeBlacklisted, "minecraft:end/find_end_city", "The City at the End of the Game", Items.PURPUR_BLOCK, "Go on in, what could happen?");
+        addHardcoded(candidates, existingIds, blacklist, filter, includeBlacklisted, "minecraft:end/elytra", "Sky's the Limit", Items.ELYTRA, "Find Elytra");
+        addHardcoded(candidates, existingIds, blacklist, filter, includeBlacklisted, "minecraft:end/levitate", "Great View From Up Here", Items.SHULKER_SHELL, "Levitate up 50 blocks from the attacks of a Shulker");
 
-        addHardcoded(candidates, existingIds, blacklist, filter, "minecraft:adventure/root", "Adventure", Items.MAP, "Adventure, exploration, and combat");
-        addHardcoded(candidates, existingIds, blacklist, filter, "minecraft:adventure/kill_a_mob", "Monster Hunter", Items.IRON_SWORD, "Kill any hostile monster");
-        addHardcoded(candidates, existingIds, blacklist, filter, "minecraft:adventure/trade", "What a Deal!", Items.EMERALD, "Successfully trade with a Villager");
-        addHardcoded(candidates, existingIds, blacklist, filter, "minecraft:adventure/ol_betsy", "Ol' Betsy", Items.CROSSBOW, "Shoot a Crossbow");
-        addHardcoded(candidates, existingIds, blacklist, filter, "minecraft:adventure/sleep_in_bed", "Sweet Dreams", Items.RED_BED, "Sleep in a bed to change your respawn point");
-        addHardcoded(candidates, existingIds, blacklist, filter, "minecraft:adventure/hero_of_the_village", "Hero of the Village", Items.WHITE_BANNER, "Successfully defend a village from a raid");
-        addHardcoded(candidates, existingIds, blacklist, filter, "minecraft:adventure/throw_trident", "A Throwaway Joke", Items.TRIDENT, "Throw a Trident at something. Note: Throwing away your only weapon is not a good idea.");
-        addHardcoded(candidates, existingIds, blacklist, filter, "minecraft:adventure/shoot_arrow", "Take Aim", Items.BOW, "Shoot something with an arrow");
-        addHardcoded(candidates, existingIds, blacklist, filter, "minecraft:adventure/kill_all_mobs", "Monsters Hunted", Items.DIAMOND_SWORD, "Kill one of every hostile monster");
-        addHardcoded(candidates, existingIds, blacklist, filter, "minecraft:adventure/totem_of_undying", "Postmortal", Items.TOTEM_OF_UNDYING, "Use a Totem of Undying to cheat death");
-        addHardcoded(candidates, existingIds, blacklist, filter, "minecraft:adventure/summon_iron_golem", "Hired Help", Items.IRON_BLOCK, "Summon an Iron Golem to help defend a village");
-        addHardcoded(candidates, existingIds, blacklist, filter, "minecraft:adventure/two_birds_one_arrow", "Two Birds, One Arrow", Items.CROSSBOW, "Kill two Phantoms with a piercing arrow");
-        addHardcoded(candidates, existingIds, blacklist, filter, "minecraft:adventure/whos_the_pillager_now", "Who's the Pillager Now?", Items.CROSSBOW, "Give a Pillager a taste of their own medicine");
-        addHardcoded(candidates, existingIds, blacklist, filter, "minecraft:adventure/arbalistic", "Arbalistic", Items.CROSSBOW, "Kill five unique mobs with one crossbow shot");
-        addHardcoded(candidates, existingIds, blacklist, filter, "minecraft:adventure/adventuring_time", "Adventuring Time", Items.DIAMOND_BOOTS, "Discover every biome");
-        addHardcoded(candidates, existingIds, blacklist, filter, "minecraft:adventure/walk_on_powder_snow_with_leather_boots", "Light as a Rabbit", Items.LEATHER_BOOTS, "Walk on powder snow... without sinking");
-        addHardcoded(candidates, existingIds, blacklist, filter, "minecraft:adventure/play_jukebox_in_meadows", "Sound of Music", Items.JUKEBOX, "Make the Meadows come alive with the sound of music from a Jukebox");
-        addHardcoded(candidates, existingIds, blacklist, filter, "minecraft:adventure/spyglass_at_parrot", "Is It a Bird?", Items.SPYGLASS, "Look at a Parrot through a Spyglass");
-        addHardcoded(candidates, existingIds, blacklist, filter, "minecraft:adventure/spyglass_at_ghast", "Is It a Balloon?", Items.SPYGLASS, "Look at a Ghast through a Spyglass");
-        addHardcoded(candidates, existingIds, blacklist, filter, "minecraft:adventure/spyglass_at_dragon", "Is It a Plane?", Items.SPYGLASS, "Look at the Ender Dragon through a Spyglass");
-        addHardcoded(candidates, existingIds, blacklist, filter, "minecraft:adventure/fall_from_world_height", "Caves & Cliffs", Items.WATER_BUCKET, "Free fall from the top of the world (build limit) to the bottom of the world and survive");
-        addHardcoded(candidates, existingIds, blacklist, filter, "minecraft:adventure/avoid_vibration", "Sneak 100", Items.SCULK_SENSOR, "Walk near a Sculk Sensor or Warden without triggering it");
-        addHardcoded(candidates, existingIds, blacklist, filter, "minecraft:adventure/kill_mob_near_sculk_catalyst", "It Spreads", Items.SCULK_CATALYST, "Kill a mob near a Sculk Catalyst");
-        addHardcoded(candidates, existingIds, blacklist, filter, "minecraft:adventure/read_power_of_chiseled_bookshelf", "Power of Books", Items.CHISELED_BOOKSHELF, "Read the power signal of a Chiseled Bookshelf using a Comparator");
-        addHardcoded(candidates, existingIds, blacklist, filter, "minecraft:adventure/trim_with_any_armor_pattern", "Crafting a New Look", Items.DUNE_ARMOR_TRIM_SMITHING_TEMPLATE, "Trim your armor at a Smithing Table");
-        addHardcoded(candidates, existingIds, blacklist, filter, "minecraft:adventure/trim_with_all_exclusive_armor_patterns", "Smithing with Style", Items.SPIRE_ARMOR_TRIM_SMITHING_TEMPLATE, "Apply these smithing templates at least once: Spire, Snout, Rib, Ward, Silence, Vex, Tide, Wayfinder");
-        addHardcoded(candidates, existingIds, blacklist, filter, "minecraft:adventure/salvage_sherd", "Respecting the Remnants", Items.BRUSH, "Brush a Suspicious Block to obtain a Pottery Sherd");
-        addHardcoded(candidates, existingIds, blacklist, filter, "minecraft:adventure/craft_decorated_pot_using_only_sherds", "Careful Restoration", Items.DECORATED_POT, "Craft a Decorated Pot out of 4 Pottery Sherds");
+        // addHardcoded(candidates, existingIds, blacklist, filter, includeBlacklisted, "minecraft:adventure/root", "Adventure", Items.MAP, "Adventure, exploration, and combat");
+        addHardcoded(candidates, existingIds, blacklist, filter, includeBlacklisted, "minecraft:adventure/kill_a_mob", "Monster Hunter", Items.IRON_SWORD, "Kill any hostile monster");
+        addHardcoded(candidates, existingIds, blacklist, filter, includeBlacklisted, "minecraft:adventure/trade", "What a Deal!", Items.EMERALD, "Successfully trade with a Villager");
+        addHardcoded(candidates, existingIds, blacklist, filter, includeBlacklisted, "minecraft:adventure/ol_betsy", "Ol' Betsy", Items.CROSSBOW, "Shoot a Crossbow");
+        addHardcoded(candidates, existingIds, blacklist, filter, includeBlacklisted, "minecraft:adventure/sleep_in_bed", "Sweet Dreams", Items.RED_BED, "Sleep in a bed to change your respawn point");
+        addHardcoded(candidates, existingIds, blacklist, filter, includeBlacklisted, "minecraft:adventure/hero_of_the_village", "Hero of the Village", Items.WHITE_BANNER, "Successfully defend a village from a raid");
+        addHardcoded(candidates, existingIds, blacklist, filter, includeBlacklisted, "minecraft:adventure/throw_trident", "A Throwaway Joke", Items.TRIDENT, "Throw a Trident at something. Note: Throwing away your only weapon is not a good idea.");
+        addHardcoded(candidates, existingIds, blacklist, filter, includeBlacklisted, "minecraft:adventure/shoot_arrow", "Take Aim", Items.BOW, "Shoot something with an arrow");
+        addHardcoded(candidates, existingIds, blacklist, filter, includeBlacklisted, "minecraft:adventure/kill_all_mobs", "Monsters Hunted", Items.DIAMOND_SWORD, "Kill one of every hostile monster");
+        addHardcoded(candidates, existingIds, blacklist, filter, includeBlacklisted, "minecraft:adventure/totem_of_undying", "Postmortal", Items.TOTEM_OF_UNDYING, "Use a Totem of Undying to cheat death");
+        addHardcoded(candidates, existingIds, blacklist, filter, includeBlacklisted, "minecraft:adventure/summon_iron_golem", "Hired Help", Items.IRON_BLOCK, "Summon an Iron Golem to help defend a village");
+        addHardcoded(candidates, existingIds, blacklist, filter, includeBlacklisted, "minecraft:adventure/two_birds_one_arrow", "Two Birds, One Arrow", Items.CROSSBOW, "Kill two Phantoms with a piercing arrow");
+        addHardcoded(candidates, existingIds, blacklist, filter, includeBlacklisted, "minecraft:adventure/whos_the_pillager_now", "Who's the Pillager Now?", Items.CROSSBOW, "Give a Pillager a taste of their own medicine");
+        addHardcoded(candidates, existingIds, blacklist, filter, includeBlacklisted, "minecraft:adventure/arbalistic", "Arbalistic", Items.CROSSBOW, "Kill five unique mobs with one crossbow shot");
+        addHardcoded(candidates, existingIds, blacklist, filter, includeBlacklisted, "minecraft:adventure/adventuring_time", "Adventuring Time", Items.DIAMOND_BOOTS, "Discover every biome");
+        addHardcoded(candidates, existingIds, blacklist, filter, includeBlacklisted, "minecraft:adventure/walk_on_powder_snow_with_leather_boots", "Light as a Rabbit", Items.LEATHER_BOOTS, "Walk on powder snow... without sinking");
+        addHardcoded(candidates, existingIds, blacklist, filter, includeBlacklisted, "minecraft:adventure/play_jukebox_in_meadows", "Sound of Music", Items.JUKEBOX, "Make the Meadows come alive with the sound of music from a Jukebox");
+        addHardcoded(candidates, existingIds, blacklist, filter, includeBlacklisted, "minecraft:adventure/spyglass_at_parrot", "Is It a Bird?", Items.SPYGLASS, "Look at a Parrot through a Spyglass");
+        addHardcoded(candidates, existingIds, blacklist, filter, includeBlacklisted, "minecraft:adventure/spyglass_at_ghast", "Is It a Balloon?", Items.SPYGLASS, "Look at a Ghast through a Spyglass");
+        addHardcoded(candidates, existingIds, blacklist, filter, includeBlacklisted, "minecraft:adventure/spyglass_at_dragon", "Is It a Plane?", Items.SPYGLASS, "Look at the Ender Dragon through a Spyglass");
+        addHardcoded(candidates, existingIds, blacklist, filter, includeBlacklisted, "minecraft:adventure/fall_from_world_height", "Caves & Cliffs", Items.WATER_BUCKET, "Free fall from the top of the world (build limit) to the bottom of the world and survive");
+        addHardcoded(candidates, existingIds, blacklist, filter, includeBlacklisted, "minecraft:adventure/avoid_vibration", "Sneak 100", Items.SCULK_SENSOR, "Walk near a Sculk Sensor or Warden without triggering it");
+        addHardcoded(candidates, existingIds, blacklist, filter, includeBlacklisted, "minecraft:adventure/kill_mob_near_sculk_catalyst", "It Spreads", Items.SCULK_CATALYST, "Kill a mob near a Sculk Catalyst");
+        addHardcoded(candidates, existingIds, blacklist, filter, includeBlacklisted, "minecraft:adventure/read_power_of_chiseled_bookshelf", "Power of Books", Items.CHISELED_BOOKSHELF, "Read the power signal of a Chiseled Bookshelf using a Comparator");
+        addHardcoded(candidates, existingIds, blacklist, filter, includeBlacklisted, "minecraft:adventure/trim_with_any_armor_pattern", "Crafting a New Look", Items.DUNE_ARMOR_TRIM_SMITHING_TEMPLATE, "Trim your armor at a Smithing Table");
+        addHardcoded(candidates, existingIds, blacklist, filter, includeBlacklisted, "minecraft:adventure/trim_with_all_exclusive_armor_patterns", "Smithing with Style", Items.SPIRE_ARMOR_TRIM_SMITHING_TEMPLATE, "Apply these smithing templates at least once: Spire, Snout, Rib, Ward, Silence, Vex, Tide, Wayfinder");
+        addHardcoded(candidates, existingIds, blacklist, filter, includeBlacklisted, "minecraft:adventure/salvage_sherd", "Respecting the Remnants", Items.BRUSH, "Brush a Suspicious Block to obtain a Pottery Sherd");
+        addHardcoded(candidates, existingIds, blacklist, filter, includeBlacklisted, "minecraft:adventure/craft_decorated_pot_using_only_sherds", "Careful Restoration", Items.DECORATED_POT, "Craft a Decorated Pot out of 4 Pottery Sherds");
         
         // Husbandry
-        addHardcoded(candidates, existingIds, blacklist, filter, "minecraft:husbandry/root", "Husbandry", Items.HAY_BLOCK, "The world is full of friends and food");
-        addHardcoded(candidates, existingIds, blacklist, filter, "minecraft:husbandry/breed_an_animal", "The Parrots and the Bats", Items.WHEAT, "Breed two animals together");
-        addHardcoded(candidates, existingIds, blacklist, filter, "minecraft:husbandry/tame_an_animal", "Best Friends Forever", Items.BONE, "Tame an animal");
-        addHardcoded(candidates, existingIds, blacklist, filter, "minecraft:husbandry/plant_seed", "A Seedy Place", Items.WHEAT_SEEDS, "Plant a seed and watch it grow");
-        addHardcoded(candidates, existingIds, blacklist, filter, "minecraft:husbandry/bred_all_animals", "Two by Two", Items.GOLDEN_CARROT, "Breed all the animals!");
-        addHardcoded(candidates, existingIds, blacklist, filter, "minecraft:husbandry/complete_catalogue", "A Complete Catalogue", Items.COD, "Tame all cat variants!");
-        addHardcoded(candidates, existingIds, blacklist, filter, "minecraft:husbandry/safely_harvest_honey", "Bee Our Guest", Items.HONEY_BOTTLE, "Use a Campfire to collect Honey from a Beehive using a Bottle without aggravating the bees");
-        addHardcoded(candidates, existingIds, blacklist, filter, "minecraft:husbandry/wax_on", "Wax On", Items.HONEYCOMB, "Apply Honeycomb to a Copper block!");
-        addHardcoded(candidates, existingIds, blacklist, filter, "minecraft:husbandry/wax_off", "Wax Off", Items.STONE_AXE, "Scrape Wax off a Copper block!");
-        addHardcoded(candidates, existingIds, blacklist, filter, "minecraft:husbandry/axolotl_in_a_bucket", "The Cutest Predator", Items.AXOLOTL_BUCKET, "Catch an Axolotl in a Bucket");
-        addHardcoded(candidates, existingIds, blacklist, filter, "minecraft:husbandry/kill_axolotl_target", "The Healing Power of Friendship", Items.TROPICAL_FISH, "Team up with an Axolotl and win a fight");
-        addHardcoded(candidates, existingIds, blacklist, filter, "minecraft:husbandry/froglights", "With Our Powers Combined!", Items.VERDANT_FROGLIGHT, "Have all Froglights in your inventory");
-        addHardcoded(candidates, existingIds, blacklist, filter, "minecraft:husbandry/tadpole_in_a_bucket", "Bukkit Bukkit", Items.TADPOLE_BUCKET, "Catch a Tadpole in a Bucket");
-        addHardcoded(candidates, existingIds, blacklist, filter, "minecraft:husbandry/leash_all_frog_variants", "When the Squad Hops into Town", Items.LEAD, "Get each Frog variant on a Lead");
-        addHardcoded(candidates, existingIds, blacklist, filter, "minecraft:husbandry/make_a_sign_glow", "Glow and Behold!", Items.GLOW_INK_SAC, "Make the text of a sign glow");
-        addHardcoded(candidates, existingIds, blacklist, filter, "minecraft:husbandry/ride_a_boat_with_a_goat", "Whatever Floats Your Goat", Items.OAK_BOAT, "Get in a Boat and float with a Goat");
-        addHardcoded(candidates, existingIds, blacklist, filter, "minecraft:husbandry/allay_deliver_item_to_player", "You've Got a Friend in Me", Items.ALLAY_SPAWN_EGG, "Have an Allay deliver items to you");
-        addHardcoded(candidates, existingIds, blacklist, filter, "minecraft:husbandry/allay_deliver_cake_to_note_block", "Birthday Song", Items.CAKE, "Have an Allay drop a Cake at a Note Block");
-        addHardcoded(candidates, existingIds, blacklist, filter, "minecraft:husbandry/obtain_sniffer_egg", "Smells Interesting", Items.SNIFFER_EGG, "Obtain a Sniffer Egg");
-        addHardcoded(candidates, existingIds, blacklist, filter, "minecraft:husbandry/feed_snifflet", "Little Sniffs", Items.TORCHFLOWER_SEEDS, "Feed a Snifflet (baby Sniffer)");
-        addHardcoded(candidates, existingIds, blacklist, filter, "minecraft:husbandry/plant_any_sniffer_seed", "Planting the Past", Items.PITCHER_POD, "Plant any Sniffer seed");
-        addHardcoded(candidates, existingIds, blacklist, filter, "minecraft:husbandry/repair_wolf_armor", "Good as New", Items.ARMADILLO_SCUTE, "Repair a damaged Wolf Armor using Armadillo Scutes");
-        addHardcoded(candidates, existingIds, blacklist, filter, "minecraft:husbandry/remove_wolf_armor", "Shear Brilliance", Items.SHEARS, "Remove Wolf Armor from a Wolf using Shears");
-        addHardcoded(candidates, existingIds, blacklist, filter, "minecraft:husbandry/whole_pack", "The Whole Pack", Items.BONE, "Tame one of each Wolf variant");
-        addHardcoded(candidates, existingIds, blacklist, filter, "minecraft:husbandry/balanced_diet", "A Balanced Diet", Items.APPLE, "Eat everything that is edible, even if it's not good for you");
-        addHardcoded(candidates, existingIds, blacklist, filter, "minecraft:husbandry/obtain_netherite_hoe", "Serious Dedication", Items.NETHERITE_HOE, "Use a Netherite Ingot to upgrade a Hoe, and then reevaluate your life choices");
-        addHardcoded(candidates, existingIds, blacklist, filter, "minecraft:husbandry/tactical_fishing", "Tactical Fishing", Items.FISHING_ROD, "Catch a fish... without a fishing rod!");
+        addHardcoded(candidates, existingIds, blacklist, filter, includeBlacklisted, "minecraft:husbandry/root", "Husbandry", Items.HAY_BLOCK, "The world is full of friends and food");
+        addHardcoded(candidates, existingIds, blacklist, filter, includeBlacklisted, "minecraft:husbandry/breed_an_animal", "The Parrots and the Bats", Items.WHEAT, "Breed two animals together");
+        addHardcoded(candidates, existingIds, blacklist, filter, includeBlacklisted, "minecraft:husbandry/tame_an_animal", "Best Friends Forever", Items.BONE, "Tame an animal");
+        addHardcoded(candidates, existingIds, blacklist, filter, includeBlacklisted, "minecraft:husbandry/plant_seed", "A Seedy Place", Items.WHEAT_SEEDS, "Plant a seed and watch it grow");
+        addHardcoded(candidates, existingIds, blacklist, filter, includeBlacklisted, "minecraft:husbandry/bred_all_animals", "Two by Two", Items.GOLDEN_CARROT, "Breed all the animals!");
+        addHardcoded(candidates, existingIds, blacklist, filter, includeBlacklisted, "minecraft:husbandry/complete_catalogue", "A Complete Catalogue", Items.COD, "Tame all cat variants!");
+        addHardcoded(candidates, existingIds, blacklist, filter, includeBlacklisted, "minecraft:husbandry/safely_harvest_honey", "Bee Our Guest", Items.HONEY_BOTTLE, "Use a Campfire to collect Honey from a Beehive using a Bottle without aggravating the bees");
+        addHardcoded(candidates, existingIds, blacklist, filter, includeBlacklisted, "minecraft:husbandry/wax_on", "Wax On", Items.HONEYCOMB, "Apply Honeycomb to a Copper block!");
+        addHardcoded(candidates, existingIds, blacklist, filter, includeBlacklisted, "minecraft:husbandry/wax_off", "Wax Off", Items.STONE_AXE, "Scrape Wax off a Copper block!");
+        addHardcoded(candidates, existingIds, blacklist, filter, includeBlacklisted, "minecraft:husbandry/axolotl_in_a_bucket", "The Cutest Predator", Items.AXOLOTL_BUCKET, "Catch an Axolotl in a Bucket");
+        addHardcoded(candidates, existingIds, blacklist, filter, includeBlacklisted, "minecraft:husbandry/kill_axolotl_target", "The Healing Power of Friendship", Items.TROPICAL_FISH, "Team up with an Axolotl and win a fight");
+        addHardcoded(candidates, existingIds, blacklist, filter, includeBlacklisted, "minecraft:husbandry/froglights", "With Our Powers Combined!", Items.VERDANT_FROGLIGHT, "Have all Froglights in your inventory");
+        addHardcoded(candidates, existingIds, blacklist, filter, includeBlacklisted, "minecraft:husbandry/tadpole_in_a_bucket", "Bukkit Bukkit", Items.TADPOLE_BUCKET, "Catch a Tadpole in a Bucket");
+        addHardcoded(candidates, existingIds, blacklist, filter, includeBlacklisted, "minecraft:husbandry/leash_all_frog_variants", "When the Squad Hops into Town", Items.LEAD, "Get each Frog variant on a Lead");
+        addHardcoded(candidates, existingIds, blacklist, filter, includeBlacklisted, "minecraft:husbandry/make_a_sign_glow", "Glow and Behold!", Items.GLOW_INK_SAC, "Make the text of a sign glow");
+        addHardcoded(candidates, existingIds, blacklist, filter, includeBlacklisted, "minecraft:husbandry/ride_a_boat_with_a_goat", "Whatever Floats Your Goat", Items.OAK_BOAT, "Get in a Boat and float with a Goat");
+        addHardcoded(candidates, existingIds, blacklist, filter, includeBlacklisted, "minecraft:husbandry/allay_deliver_item_to_player", "You've Got a Friend in Me", Items.ALLAY_SPAWN_EGG, "Have an Allay deliver items to you");
+        addHardcoded(candidates, existingIds, blacklist, filter, includeBlacklisted, "minecraft:husbandry/allay_deliver_cake_to_note_block", "Birthday Song", Items.CAKE, "Have an Allay drop a Cake at a Note Block");
+        addHardcoded(candidates, existingIds, blacklist, filter, includeBlacklisted, "minecraft:husbandry/obtain_sniffer_egg", "Smells Interesting", Items.SNIFFER_EGG, "Obtain a Sniffer Egg");
+        addHardcoded(candidates, existingIds, blacklist, filter, includeBlacklisted, "minecraft:husbandry/feed_snifflet", "Little Sniffs", Items.TORCHFLOWER_SEEDS, "Feed a Snifflet (baby Sniffer)");
+        addHardcoded(candidates, existingIds, blacklist, filter, includeBlacklisted, "minecraft:husbandry/plant_any_sniffer_seed", "Planting the Past", Items.PITCHER_POD, "Plant any Sniffer seed");
+        addHardcoded(candidates, existingIds, blacklist, filter, includeBlacklisted, "minecraft:husbandry/repair_wolf_armor", "Good as New", Items.ARMADILLO_SCUTE, "Repair a damaged Wolf Armor using Armadillo Scutes");
+        addHardcoded(candidates, existingIds, blacklist, filter, includeBlacklisted, "minecraft:husbandry/remove_wolf_armor", "Shear Brilliance", Items.SHEARS, "Remove Wolf Armor from a Wolf using Shears");
+        addHardcoded(candidates, existingIds, blacklist, filter, includeBlacklisted, "minecraft:husbandry/whole_pack", "The Whole Pack", Items.BONE, "Tame one of each Wolf variant");
+        addHardcoded(candidates, existingIds, blacklist, filter, includeBlacklisted, "minecraft:husbandry/balanced_diet", "A Balanced Diet", Items.APPLE, "Eat everything that is edible, even if it's not good for you");
+        addHardcoded(candidates, existingIds, blacklist, filter, includeBlacklisted, "minecraft:husbandry/obtain_netherite_hoe", "Serious Dedication", Items.NETHERITE_HOE, "Use a Netherite Ingot to upgrade a Hoe, and then reevaluate your life choices");
+        addHardcoded(candidates, existingIds, blacklist, filter, includeBlacklisted, "minecraft:husbandry/tactical_fishing", "Tactical Fishing", Items.FISHING_ROD, "Catch a fish... without a fishing rod!");
+        
+        // System.out.println("Hardcoded populated. Added: " + (candidates.size() - startSize));
     }
 
     private static void addPotionObjective(List<Objective> candidates, Item item, Holder<Potion> potionHolder, String prefix, List<? extends String> blacklist, String filter, boolean includeBlacklisted) {
@@ -429,10 +444,14 @@ public class ObjectivePoolHelper {
         candidates.add(new Objective(id, Component.literal(displayName), stack, Objective.Type.ITEM, null));
     }
 
-    private static void addHardcoded(List<Objective> candidates, java.util.Set<String> existingIds, List<? extends String> blacklist, String filter, String id, String name, Item icon, String description) {
+    private static void addHardcoded(List<Objective> candidates, java.util.Set<String> existingIds, List<? extends String> blacklist, String filter, boolean includeBlacklisted, String id, String name, Item icon, String description) {
+        if (EXCLUDED_ROOTS.contains(id)) return;
         if (existingIds.contains(id)) return;
-        if (!filter.isEmpty() && !id.contains(filter)) return;
-        if (blacklist.contains(id)) return;
+        if (!filter.isEmpty() && !id.contains(filter)) {
+             // System.out.println("Filtered out hardcoded: " + id + " because of filter: " + filter);
+             return;
+        }
+        if (!includeBlacklisted && blacklist.contains(id)) return;
 
         candidates.add(new Objective(
             id,
