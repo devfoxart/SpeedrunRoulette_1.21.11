@@ -596,6 +596,7 @@ public class SpeedrunRoulette {
         public void onClientPlayerLoggedOut(ClientPlayerNetworkEvent.LoggingOut event) {
             SpeedrunRoulette.hasCheckedAutoOpen = false;
             SpeedrunState.markObjectivesStale();
+            SpeedrunState.resetTimer();
         }
 
         @SubscribeEvent

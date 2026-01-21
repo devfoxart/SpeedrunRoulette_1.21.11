@@ -17,6 +17,8 @@ public class AdvancementProgressHelper {
     public record CriteriaInfo(String rawName, Component displayName, boolean completed) {}
 
     private static Field progressField;
+    private static final Map<String, Long> lastRequestTimes = new java.util.concurrent.ConcurrentHashMap<>();
+    private static long lastGlobalRequestTime = 0;
 
     static {
         try {
@@ -163,8 +165,15 @@ public class AdvancementProgressHelper {
                      }
                      
                      if (!containsKey) {
-                         // Force re-request if not found (throttle to once per second)
-                         if (System.currentTimeMillis() % 1000 < 50) {
+                         // Force re-request if not found (throttle to prevent spam)
+                         long now = System.currentTimeMillis();
+                         long lastRequest = lastRequestTimes.getOrDefault(advancementId, 0L);
+                         
+                         // Global throttle: 1 request per second max
+                         // Per-advancement throttle: 10 seconds
+                         if (now - lastGlobalRequestTime > 1000 && now - lastRequest > 10000) {
+                             lastGlobalRequestTime = now;
+                             lastRequestTimes.put(advancementId, now);
                              requestUpdate(advancementId);
                          }
                      }
