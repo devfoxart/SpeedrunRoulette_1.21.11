@@ -44,17 +44,23 @@ public class WheelScreen extends Screen {
     }
 
     private void confirmSelection() {
-        SpeedrunState.setObjectives(new ArrayList<>(winners));
-        SpeedrunState.startTimer();
-        
-        // Save to World Data (Singleplayer Bridge)
-        net.minecraft.server.MinecraftServer server = Minecraft.getInstance().getSingleplayerServer();
-        if (server != null) {
-            SpeedrunWorldData data = SpeedrunWorldData.get(server);
-            data.setObjectives(winners);
-        }
-        
         this.onClose();
+    }
+
+    @Override
+    public void onClose() {
+        if (!winners.isEmpty()) {
+            SpeedrunState.setObjectives(new ArrayList<>(winners));
+            SpeedrunState.startTimer();
+            
+            // Save to World Data (Singleplayer Bridge)
+            net.minecraft.server.MinecraftServer server = Minecraft.getInstance().getSingleplayerServer();
+            if (server != null) {
+                SpeedrunWorldData data = SpeedrunWorldData.get(server);
+                data.setObjectives(winners);
+            }
+        }
+        super.onClose();
     }
 
     @Override
